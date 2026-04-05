@@ -1,6 +1,6 @@
 import { motion } from "motion/react";
 import { MessageSquare, AlertTriangle, Search, ShieldCheck } from "lucide-react";
-import { cn } from "@/src/lib/utils";
+import { cn } from "../lib/utils";
 
 interface SocraticBoxProps {
   weakPoint: string;
@@ -16,11 +16,14 @@ export function SocraticBox({ weakPoint, fluffDetected, socraticHit, className }
       animate={{ opacity: 1, y: 0, scale: 1 }}
       transition={{ duration: 0.5, ease: [0.16, 1, 0.3, 1] }}
       className={cn(
-        "relative w-full space-y-6 rounded-2xl border border-white/10 bg-slate-900/80 p-6 backdrop-blur-xl shadow-2xl",
+        "relative w-full space-y-6 rounded-2xl border border-indigo-500/20 bg-slate-900/60 p-6 backdrop-blur-2xl shadow-[0_0_40px_rgba(79,70,229,0.05)] overflow-hidden group",
         className
       )}
     >
-      <div className="flex items-center gap-3 border-b border-white/5 pb-4">
+      {/* Subtle Background Glow */}
+      <div className="absolute -top-12 -right-12 h-24 w-24 rounded-full bg-indigo-500/5 blur-2xl pointer-events-none group-hover:bg-indigo-500/10 transition-colors duration-700" />
+      
+      <div className="flex items-center gap-3 border-b border-white/5 pb-4 relative z-10">
         <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-indigo-500/20 text-indigo-400">
           <ShieldCheck size={20} />
         </div>
@@ -30,7 +33,7 @@ export function SocraticBox({ weakPoint, fluffDetected, socraticHit, className }
         </div>
       </div>
 
-      <div className="space-y-4">
+      <div className="space-y-4 relative z-10">
         <div className="space-y-2">
           <div className="flex items-center gap-2 text-[10px] font-bold text-red-400 uppercase tracking-wider">
             <AlertTriangle size={12} />
@@ -63,7 +66,7 @@ export function SocraticBox({ weakPoint, fluffDetected, socraticHit, className }
         </div>
       </div>
 
-      <div className="flex items-center gap-2 text-[10px] font-mono text-slate-600">
+      <div className="flex items-center gap-2 text-[10px] font-mono text-slate-600 relative z-10">
         <Search size={10} />
         <span>Searching for Human Spark...</span>
       </div>

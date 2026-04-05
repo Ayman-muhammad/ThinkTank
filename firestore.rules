@@ -1,0 +1,165 @@
+// ===============================================================
+// Assumed Data Model
+// ===============================================================
+//
+// Collection: /users/{uid}
+// Document ID: Firebase Auth UID
+// Fields:
+//   - uid: string (required, immutable) - Firebase Auth UID
+//   - email: string (required, format: email) - User's email
+//   - displayName: string (optional) - User's display name
+//   - photoURL: string (optional, format: uri) - User's photo URL
+//   - role: string (required, enum: ['user', 'admin']) - User's role
+//   - totalSparks: number (optional) - Total verified sparks
+//   - averagePulse: number (optional) - Average quality score
+//   - createdAt: timestamp (required, immutable) - Document creation time
+//
+// Collection: /thoughts/{thoughtId}
+// Document ID: Auto-generated
+// Fields:
+//   - ownerUid: string (required, immutable) - Owner's UID
+//   - originalText: string (required, size < 10000) - Original AI text
+//   - socraticQuestion: string (required, size < 2000) - Socratic question
+//   - humanSpark: string (required, size < 5000) - User's spark
+//   - refinedText: string (required, size < 10000) - Refined output
+//   - pulseScore: number (required, range: 0-100) - Quality score
+//   - isPublic: bool (required) - Visibility status
+//   - createdAt: timestamp (required, immutable) - Creation time
+//
+// ===============================================================
+
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ===============================================================
+    // Helper Functions
+    // ===============================================================
+
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+
+    function isAdmin() {
+      return isAuthenticated() &&
+        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
+         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.role == 'admin' ||
+          (request.auth.token.email == "ayman11muhammad@gmail.com" && request.auth.token.email_verified == true));
+    }
+
+    function isValidEmail(email) {
+      return email is string && email.matches("^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\\.[a-zA-Z]{2,}$");
+    }
+
+    function isValidUrl(url) {
+      return url is string && (url.matches("^https://.*") || url.matches("^http://.*"));
+    }
+
+    function hasOnlyAllowedFields(fields) {
+      return request.resource.data.keys().hasOnly(fields);
+    }
+
+    function areImmutableFieldsUnchanged(fields) {
+      return !request.resource.data.diff(resource.data).affectedKeys().hasAny(fields);
+    }
+
+    // ===============================================================
+    // Domain Validators
+    // ===============================================================
+
+    function isValidUser(data) {
+      return hasOnlyAllowedFields(['uid', 'email', 'displayName', 'photoURL', 'role', 'totalSparks', 'streak', 'lastSparkDate', 'score', 'organization', 'averagePulse', 'createdAt', 'updatedAt']) &&
+             data.uid is string && data.uid.size() > 0 &&
+             data.email is string && isValidEmail(data.email) &&
+             (data.displayName == null || (data.displayName is string && data.displayName.size() < 100)) &&
+             (data.photoURL == null || isValidUrl(data.photoURL)) &&
+             data.role in ['user', 'admin'] &&
+             (data.totalSparks == null || data.totalSparks is number) &&
+             (data.streak == null || data.streak is number) &&
+             (data.lastSparkDate == null || data.lastSparkDate is string) &&
+             (data.score == null || data.score is number) &&
+             (data.organization == null || (data.organization is string && data.organization.size() < 100)) &&
+             (data.averagePulse == null || data.averagePulse is number) &&
+             (data.createdAt == null || data.createdAt is timestamp) &&
+             (data.updatedAt == null || data.updatedAt is timestamp);
+    }
+
+    function isValidProfile(data) {
+      return hasOnlyAllowedFields(['uid', 'displayName', 'photoURL', 'streak', 'score', 'organization', 'updatedAt']) &&
+             data.uid is string &&
+             (data.displayName == null || (data.displayName is string && data.displayName.size() < 100)) &&
+             (data.photoURL == null || isValidUrl(data.photoURL)) &&
+             data.streak is number &&
+             data.score is number &&
+             (data.organization == null || (data.organization is string && data.organization.size() < 100)) &&
+             (data.updatedAt == null || data.updatedAt is timestamp);
+    }
+
+    function isValidThought(data) {
+      return hasOnlyAllowedFields(['ownerUid', 'originalText', 'socraticQuestion', 'humanSpark', 'refinedText', 'pulseScore', 'isPublic', 'createdAt']) &&
+             data.ownerUid is string && data.ownerUid.size() > 0 &&
+             data.originalText is string && data.originalText.size() < 10000 &&
+             data.socraticQuestion is string && data.socraticQuestion.size() < 2000 &&
+             data.humanSpark is string && data.humanSpark.size() < 5000 &&
+             data.refinedText is string && data.refinedText.size() < 10000 &&
+             data.pulseScore is number && data.pulseScore >= 0 && data.pulseScore <= 100 &&
+             data.isPublic is bool &&
+             (data.createdAt == null || data.createdAt is timestamp);
+    }
+
+    // ===============================================================
+    // Collection Rules
+    // ===============================================================
+
+    match /users/{userId} {
+      // Users can read their own profile. Admins can read any profile.
+      allow read: if isOwner(userId) || isAdmin();
+      
+      // Users can create their own profile if it's a 'user' role. Admins can create any profile.
+      allow create: if isAuthenticated() && isValidUser(request.resource.data) && 
+                      ((isOwner(userId) && request.resource.data.role == 'user') || isAdmin());
+      
+      // Users can update their own profile but cannot change their role. Admins can update anything.
+      allow update: if isAuthenticated() && isValidUser(request.resource.data) && 
+                      ((isOwner(userId) && request.resource.data.role == resource.data.role && areImmutableFieldsUnchanged(['uid', 'createdAt'])) || isAdmin());
+      
+      allow delete: if isAdmin();
+    }
+
+    match /profiles/{userId} {
+      // Anyone authenticated can read profiles for the leaderboard.
+      allow read: if isAuthenticated();
+      
+      // Users can create/update their own profile.
+      allow create: if isOwner(userId) && isValidProfile(request.resource.data);
+      allow update: if isOwner(userId) && isValidProfile(request.resource.data) && areImmutableFieldsUnchanged(['uid']);
+      
+      allow delete: if isAdmin();
+    }
+
+    match /thoughts/{thoughtId} {
+      // Anyone can read public thoughts. Owners can read their own. Admins can read any.
+      allow read: if resource.data.isPublic == true || isOwner(resource.data.ownerUid) || isAdmin();
+      
+      // Authenticated users can create thoughts for themselves.
+      allow create: if isAuthenticated() && isValidThought(request.resource.data) && 
+                      (request.resource.data.ownerUid == request.auth.uid || isAdmin());
+      
+      // Owners can update their own thoughts.
+      allow update: if isAuthenticated() && isValidThought(request.resource.data) && 
+                      ((isOwner(resource.data.ownerUid) && areImmutableFieldsUnchanged(['ownerUid', 'createdAt'])) || isAdmin());
+      
+      // Owners can delete their own thoughts.
+      allow delete: if isOwner(resource.data.ownerUid) || isAdmin();
+    }
+
+    // Default deny
+    match /{path=**} {
+      allow read, write: if false;
+    }
+  }
+}

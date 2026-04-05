@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { motion } from "motion/react";
 import { Send, Sparkles, Loader2 } from "lucide-react";
-import { cn } from "@/src/lib/utils";
+import { cn } from "../lib/utils";
 
 interface SparkInputProps {
   onSpark: (spark: string) => void;
@@ -16,6 +16,7 @@ export function SparkInput({ onSpark, isLoading, className, placeholder = "Add y
   const handleSubmit = () => {
     if (spark.trim() && !isLoading) {
       onSpark(spark);
+      setSpark("");
     }
   };
 

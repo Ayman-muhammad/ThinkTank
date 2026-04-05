@@ -1,0 +1,70 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "Stores user identity and cognitive growth statistics.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string", "description": "Firebase Auth UID" },
+        "email": { "type": "string", "format": "email" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string", "format": "uri" },
+        "role": { "type": "string", "enum": ["user", "admin"] },
+        "totalSparks": { "type": "integer", "description": "Number of verified human sparks" },
+        "streak": { "type": "integer", "description": "Consecutive days of human sparks" },
+        "lastSparkDate": { "type": "string", "format": "date", "description": "Last date a spark was added" },
+        "score": { "type": "integer", "description": "Total gamified score" },
+        "organization": { "type": "string", "description": "School, company, or region for leaderboard" },
+        "averagePulse": { "type": "number", "description": "Average quality score" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "email", "role"]
+    },
+    "Profile": {
+      "title": "Public Profile",
+      "description": "Publicly visible user statistics for the leaderboard.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "displayName": { "type": "string" },
+        "photoURL": { "type": "string", "format": "uri" },
+        "streak": { "type": "integer" },
+        "score": { "type": "integer" },
+        "organization": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "streak", "score"]
+    },
+    "VerifiedThought": {
+      "title": "Verified Human Thought",
+      "description": "A record of a human-verified AI output.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "ownerUid": { "type": "string" },
+        "originalText": { "type": "string" },
+        "socraticQuestion": { "type": "string" },
+        "humanSpark": { "type": "string" },
+        "refinedText": { "type": "string" },
+        "pulseScore": { "type": "number" },
+        "isPublic": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["ownerUid", "originalText", "refinedText", "pulseScore"]
+    }
+  },
+  "firestore": {
+    "/users/{uid}": {
+      "schema": "User",
+      "description": "User profile documents"
+    },
+    "/profiles/{uid}": {
+      "schema": "Profile",
+      "description": "Public user profiles for leaderboard"
+    },
+    "/thoughts/{thoughtId}": {
+      "schema": "VerifiedThought",
+      "description": "Collection of all verified thoughts"
+    }
+  }
+}

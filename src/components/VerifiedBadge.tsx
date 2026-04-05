@@ -1,6 +1,7 @@
+import React, { useState } from "react";
 import { motion } from "motion/react";
-import { CheckCircle2, ShieldCheck, Share2, Download } from "lucide-react";
-import { cn } from "@/src/lib/utils";
+import { CheckCircle2, ShieldCheck, Share2, Download, Check } from "lucide-react";
+import { cn } from "../lib/utils";
 
 interface VerifiedBadgeProps {
   score: number;
@@ -9,6 +10,52 @@ interface VerifiedBadgeProps {
 }
 
 export function VerifiedBadge({ score, timestamp, className }: VerifiedBadgeProps) {
+  const [shared, setShared] = useState(false);
+
+  const handleShare = async () => {
+    try {
+      const url = window.location.href;
+      await navigator.clipboard.writeText(url);
+      setShared(true);
+      setTimeout(() => setShared(false), 2000);
+    } catch (err) {
+      console.warn("Clipboard copy failed", err);
+    }
+  };
+
+  const handleDownload = () => {
+    try {
+      const certificateText = `
+=========================================
+      THINKTANK (T.T.) VERIFIED PROOF
+=========================================
+Timestamp: ${timestamp}
+Human Pulse Score: ${score}%
+Status: VERIFIED HUMAN INSIGHT
+
+This document certifies that the associated 
+content has undergone a Socratic Audit 
+and contains a verified "Human Spark."
+
+-----------------------------------------
+ThinkTank (T.T.) | Human Insight Protocol
+=========================================
+      `.trim();
+
+      const blob = new Blob([certificateText], { type: "text/plain" });
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `ThinkTank-Proof-${new Date().getTime()}.txt`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("Download failed", err);
+    }
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, scale: 0.9 }}
@@ -48,11 +95,20 @@ export function VerifiedBadge({ score, timestamp, className }: VerifiedBadgeProp
       </div>
 
       <div className="mt-6 flex items-center gap-3">
-        <button className="flex items-center gap-2 rounded-xl bg-white/5 px-4 py-2 text-xs font-bold text-slate-300 hover:bg-white/10 transition-colors">
-          <Share2 size={14} />
-          <span>Share Proof</span>
+        <button 
+          onClick={handleShare}
+          className={cn(
+            "flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all",
+            shared ? "bg-emerald-500 text-slate-900" : "bg-white/5 text-slate-300 hover:bg-white/10"
+          )}
+        >
+          {shared ? <Check size={14} /> : <Share2 size={14} />}
+          <span>{shared ? "Link Copied" : "Share Proof"}</span>
         </button>
-        <button className="flex items-center gap-2 rounded-xl bg-white/5 px-4 py-2 text-xs font-bold text-slate-300 hover:bg-white/10 transition-colors">
+        <button 
+          onClick={handleDownload}
+          className="flex items-center gap-2 rounded-xl bg-white/5 px-4 py-2 text-xs font-bold text-slate-300 hover:bg-white/10 transition-colors"
+        >
           <Download size={14} />
           <span>Download Certificate</span>
         </button>
