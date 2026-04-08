@@ -1,0 +1,352 @@
+[
+  {
+    "id": "student-anecdote",
+    "userType": "Student",
+    "challenge": "Add Personal Anecdote",
+    "label": "Personal Connection",
+    "template": "Based on my own experience with [Topic], I've noticed that..."
+  },
+  {
+    "id": "student-simplify",
+    "userType": "Student",
+    "challenge": "Simplify Concept",
+    "label": "ELI5",
+    "template": "If I had to explain this to a peer who has never heard of it, I would say..."
+  },
+  {
+    "id": "student-question",
+    "userType": "Student",
+    "challenge": "Challenge Assumption",
+    "label": "Critical Question",
+    "template": "Wait, does this assume that [Assumption] is always true? What if..."
+  },
+  {
+    "id": "student-apply",
+    "userType": "Student",
+    "challenge": "Real-world Application",
+    "label": "Practical Use",
+    "template": "I can see this being applied in a real-world scenario like [Scenario] because..."
+  },
+  {
+    "id": "dev-edge-case",
+    "userType": "Developer",
+    "challenge": "Identify Edge Case",
+    "label": "Edge Case",
+    "template": "What happens if the input is [Edge Case]? The current logic seems to miss..."
+  },
+  {
+    "id": "dev-refactor",
+    "userType": "Developer",
+    "challenge": "Optimize Logic",
+    "label": "Refactor Idea",
+    "template": "Instead of [Current Approach], we could use [New Approach] to improve performance by..."
+  },
+  {
+    "id": "dev-security",
+    "userType": "Developer",
+    "challenge": "Security Audit",
+    "label": "Security Flaw",
+    "template": "This implementation might be vulnerable to [Threat] because..."
+  },
+  {
+    "id": "dev-ux",
+    "userType": "Developer",
+    "challenge": "UX Consideration",
+    "label": "User Friction",
+    "template": "From a user's perspective, this step feels redundant. We should..."
+  },
+  {
+    "id": "writer-voice",
+    "userType": "Writer",
+    "challenge": "Inject Voice",
+    "label": "Human Tone",
+    "template": "This sounds too robotic. Let's rephrase it with a more [Tone] vibe, like..."
+  },
+  {
+    "id": "writer-metaphor",
+    "userType": "Writer",
+    "challenge": "Use Metaphor",
+    "label": "Metaphor",
+    "template": "To make this stick, let's compare [Concept] to [Metaphor]..."
+  },
+  {
+    "id": "writer-hook",
+    "userType": "Writer",
+    "challenge": "Stronger Hook",
+    "label": "The Hook",
+    "template": "The opening is weak. Let's start with a provocative statement like..."
+  },
+  {
+    "id": "writer-sensory",
+    "userType": "Writer",
+    "challenge": "Sensory Detail",
+    "label": "Show, Don't Tell",
+    "template": "Instead of saying it was [Adjective], let's describe the [Sensation]..."
+  },
+  {
+    "id": "analyst-bias",
+    "userType": "Analyst",
+    "challenge": "Identify Bias",
+    "label": "Bias Check",
+    "template": "This data might be skewed by [Factor]. We need to account for..."
+  },
+  {
+    "id": "analyst-trend",
+    "userType": "Analyst",
+    "challenge": "Spot Trend",
+    "label": "Hidden Trend",
+    "template": "Looking closer at the numbers, there's a subtle trend where [Trend]..."
+  },
+  {
+    "id": "analyst-counter",
+    "userType": "Analyst",
+    "challenge": "Provide Counter-Example",
+    "label": "Counter-Point",
+    "template": "While the report says [X], the case of [Y] suggests the opposite because..."
+  },
+  {
+    "id": "analyst-impact",
+    "userType": "Analyst",
+    "challenge": "Long-term Impact",
+    "label": "Future Outlook",
+    "template": "The immediate result is [X], but the 5-year impact will likely be [Y] due to..."
+  },
+  {
+    "id": "leader-vision",
+    "userType": "Leader",
+    "challenge": "Strategic Alignment",
+    "label": "The 'Why'",
+    "template": "How does this connect to our core mission of [Mission]? It feels like..."
+  },
+  {
+    "id": "leader-empathy",
+    "userType": "Leader",
+    "challenge": "Human Element",
+    "label": "Team Impact",
+    "template": "We're focusing on the tech, but how will this affect the team's [Metric]?"
+  },
+  {
+    "id": "leader-bottleneck",
+    "userType": "Leader",
+    "challenge": "Identify Bottleneck",
+    "label": "Blocker",
+    "template": "The real bottleneck isn't [X], it's actually [Y]. We need to..."
+  },
+  {
+    "id": "leader-culture",
+    "userType": "Leader",
+    "challenge": "Cultural Fit",
+    "label": "Culture Check",
+    "template": "This approach might clash with our value of [Value]. Let's adjust by..."
+  },
+  {
+    "id": "creative-absurd",
+    "userType": "Creative",
+    "challenge": "Absurd Pivot",
+    "label": "Wildcard",
+    "template": "What if we did the exact opposite? Instead of [X], we do [Y]..."
+  },
+  {
+    "id": "creative-constraint",
+    "userType": "Creative",
+    "challenge": "Add Constraint",
+    "label": "Limitation",
+    "template": "If we couldn't use [Tool/Method], how would we achieve the same result?"
+  },
+  {
+    "id": "creative-mashup",
+    "userType": "Creative",
+    "challenge": "Cross-pollinate",
+    "label": "Mashup",
+    "template": "Let's take an idea from [Different Field] and apply it here. For example..."
+  },
+  {
+    "id": "creative-subvert",
+    "userType": "Creative",
+    "challenge": "Subvert Expectation",
+    "label": "The Twist",
+    "template": "The audience expects [X], but we're going to give them [Y] because..."
+  },
+  {
+    "id": "educator-scaffold",
+    "userType": "Educator",
+    "challenge": "Scaffolding",
+    "label": "Step-by-Step",
+    "template": "Before they can understand [Complex Topic], they first need to master..."
+  },
+  {
+    "id": "educator-misconception",
+    "userType": "Educator",
+    "challenge": "Address Misconception",
+    "label": "Myth Buster",
+    "template": "Commonly, people think [Misconception], but the reality is [Fact]..."
+  },
+  {
+    "id": "educator-active",
+    "userType": "Educator",
+    "challenge": "Active Learning",
+    "label": "Engagement",
+    "template": "Instead of just reading this, the student should [Action] to truly learn..."
+  },
+  {
+    "id": "educator-feedback",
+    "userType": "Educator",
+    "challenge": "Constructive Feedback",
+    "label": "Feedback Loop",
+    "template": "The student did [X] well, but to get to the next level, they should focus on..."
+  },
+  {
+    "id": "philosopher-ethics",
+    "userType": "Philosopher",
+    "challenge": "Ethical Dilemma",
+    "label": "Ethics",
+    "template": "Is it morally justifiable to [Action] if the outcome is [Outcome]?"
+  },
+  {
+    "id": "philosopher-first-principles",
+    "userType": "Philosopher",
+    "challenge": "First Principles",
+    "label": "Roots",
+    "template": "Stripping away all assumptions, what is the fundamental truth of [Topic]?"
+  },
+  {
+    "id": "philosopher-paradox",
+    "userType": "Philosopher",
+    "challenge": "Identify Paradox",
+    "label": "Paradox",
+    "template": "There's a contradiction here: if [A] is true, then [B] cannot be, yet..."
+  },
+  {
+    "id": "philosopher-meaning",
+    "userType": "Philosopher",
+    "challenge": "Search for Meaning",
+    "label": "The 'So What?'",
+    "template": "Beyond the utility, what is the deeper significance of [Topic] for humanity?"
+  },
+  {
+    "id": "scientist-hypothesis",
+    "userType": "Scientist",
+    "challenge": "Form Hypothesis",
+    "label": "Hypothesis",
+    "template": "If we change [Variable], I predict that [Result] will happen because..."
+  },
+  {
+    "id": "scientist-falsify",
+    "userType": "Scientist",
+    "challenge": "Falsification",
+    "label": "Test Case",
+    "template": "What evidence would prove this theory wrong? If we saw [Evidence], then..."
+  },
+  {
+    "id": "scientist-reproducibility",
+    "userType": "Scientist",
+    "challenge": "Reproducibility",
+    "label": "Methodology",
+    "template": "To ensure others can repeat this, we must be more specific about [Step]..."
+  },
+  {
+    "id": "scientist-correlation",
+    "userType": "Scientist",
+    "challenge": "Correlation vs Causation",
+    "label": "Causality",
+    "template": "Are we sure [A] causes [B], or is there a third variable [C] at play?"
+  },
+  {
+    "id": "entrepreneur-market",
+    "userType": "Entrepreneur",
+    "challenge": "Market Fit",
+    "label": "The Gap",
+    "template": "Existing solutions fail to address [Pain Point]. Our approach is better because..."
+  },
+  {
+    "id": "entrepreneur-scale",
+    "userType": "Entrepreneur",
+    "challenge": "Scalability",
+    "label": "Growth",
+    "template": "This works for 10 users, but how does it break when we have 10,000?"
+  },
+  {
+    "id": "entrepreneur-pivot",
+    "userType": "Entrepreneur",
+    "challenge": "Strategic Pivot",
+    "label": "The Pivot",
+    "template": "The market is moving towards [Trend]. We should shift our focus from [A] to [B]..."
+  },
+  {
+    "id": "entrepreneur-monetize",
+    "userType": "Entrepreneur",
+    "challenge": "Monetization",
+    "label": "Revenue",
+    "template": "We're providing value, but where is the sustainable business model in [Action]?"
+  },
+  {
+    "id": "general-clarify",
+    "userType": "General",
+    "challenge": "Clarify Ambiguity",
+    "label": "Clarify",
+    "template": "When you say [Term], do you mean [Definition A] or [Definition B]?"
+  },
+  {
+    "id": "general-context",
+    "userType": "General",
+    "challenge": "Add Context",
+    "label": "Context",
+    "template": "This only makes sense if you consider the background of [Context]..."
+  },
+  {
+    "id": "general-example",
+    "userType": "General",
+    "challenge": "Concrete Example",
+    "label": "Example",
+    "template": "Can you give a specific example of how [Concept] works in practice?"
+  },
+  {
+    "id": "general-summary",
+    "userType": "General",
+    "challenge": "Synthesize",
+    "label": "Summary",
+    "template": "So, the main takeaway here is that [Takeaway]. Is that correct?"
+  },
+  {
+    "id": "general-alternative",
+    "userType": "General",
+    "challenge": "Alternative View",
+    "label": "Devil's Advocate",
+    "template": "To play devil's advocate, one might argue that [Opposing View] because..."
+  },
+  {
+    "id": "general-nuance",
+    "userType": "General",
+    "challenge": "Add Nuance",
+    "label": "Nuance",
+    "template": "It's not just black and white. There's a gray area where [Nuance]..."
+  },
+  {
+    "id": "general-consequence",
+    "userType": "General",
+    "challenge": "Unintended Consequence",
+    "label": "Ripple Effect",
+    "template": "If we do [X], have we considered the ripple effect on [Y]?"
+  },
+  {
+    "id": "general-source",
+    "userType": "General",
+    "challenge": "Verify Source",
+    "label": "Source Check",
+    "template": "Where does this information come from? Is [Source] reliable for this?"
+  },
+  {
+    "id": "general-emotion",
+    "userType": "General",
+    "challenge": "Emotional Intelligence",
+    "label": "EQ",
+    "template": "How will this message land emotionally? It might come across as [Emotion]..."
+  },
+  {
+    "id": "general-action",
+    "userType": "General",
+    "challenge": "Call to Action",
+    "label": "Next Step",
+    "template": "Now that we've established [Fact], the most logical next step is to..."
+  }
+]

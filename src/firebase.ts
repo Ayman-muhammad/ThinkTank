@@ -49,6 +49,15 @@ export const loginWithGoogle = () => signInWithPopup(auth, googleProvider);
 export const logout = () => signOut(auth);
 export { createUserWithEmailAndPassword, signInWithEmailAndPassword, updateProfile };
 
+export const updateUserGenome = async (uid: string, genome: any) => {
+  const path = `users/${uid}`;
+  try {
+    await setDoc(doc(db, 'users', uid), { socraticGenome: genome }, { merge: true });
+  } catch (error) {
+    handleFirestoreError(error, OperationType.UPDATE, path);
+  }
+};
+
 // Firestore Error Handling
 export enum OperationType {
   CREATE = 'create',

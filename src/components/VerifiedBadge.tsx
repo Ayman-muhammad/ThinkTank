@@ -95,7 +95,9 @@ ThinkTank (T.T.) | Human Insight Protocol
       </div>
 
       <div className="mt-6 flex items-center gap-3">
-        <button 
+        <motion.button 
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
           onClick={handleShare}
           className={cn(
             "flex items-center gap-2 rounded-xl px-4 py-2 text-xs font-bold transition-all",
@@ -104,14 +106,16 @@ ThinkTank (T.T.) | Human Insight Protocol
         >
           {shared ? <Check size={14} /> : <Share2 size={14} />}
           <span>{shared ? "Link Copied" : "Share Proof"}</span>
-        </button>
-        <button 
+        </motion.button>
+        <motion.button 
+          whileHover={{ scale: 1.05 }}
+          whileTap={{ scale: 0.95 }}
           onClick={handleDownload}
           className="flex items-center gap-2 rounded-xl bg-white/5 px-4 py-2 text-xs font-bold text-slate-300 hover:bg-white/10 transition-colors"
         >
           <Download size={14} />
           <span>Download Certificate</span>
-        </button>
+        </motion.button>
       </div>
     </motion.div>
   );

@@ -72,31 +72,41 @@ service cloud.firestore {
     // ===============================================================
 
     function isValidUser(data) {
-      return hasOnlyAllowedFields(['uid', 'email', 'displayName', 'photoURL', 'role', 'totalSparks', 'streak', 'lastSparkDate', 'score', 'organization', 'averagePulse', 'createdAt', 'updatedAt']) &&
+      return hasOnlyAllowedFields(['uid', 'email', 'displayName', 'photoURL', 'role', 'totalSparks', 'streak', 'lastSparkDate', 'score', 'organization', 'averagePulse', 'socraticGenome', 'createdAt', 'updatedAt']) &&
              data.uid is string && data.uid.size() > 0 &&
              data.email is string && isValidEmail(data.email) &&
-             (data.displayName == null || (data.displayName is string && data.displayName.size() < 100)) &&
-             (data.photoURL == null || isValidUrl(data.photoURL)) &&
+             (!('displayName' in data) || data.displayName == null || (data.displayName is string && data.displayName.size() < 100)) &&
+             (!('photoURL' in data) || data.photoURL == null || isValidUrl(data.photoURL)) &&
              data.role in ['user', 'admin'] &&
-             (data.totalSparks == null || data.totalSparks is number) &&
-             (data.streak == null || data.streak is number) &&
-             (data.lastSparkDate == null || data.lastSparkDate is string) &&
-             (data.score == null || data.score is number) &&
-             (data.organization == null || (data.organization is string && data.organization.size() < 100)) &&
-             (data.averagePulse == null || data.averagePulse is number) &&
-             (data.createdAt == null || data.createdAt is timestamp) &&
-             (data.updatedAt == null || data.updatedAt is timestamp);
+             (!('totalSparks' in data) || data.totalSparks is number) &&
+             (!('streak' in data) || data.streak is number) &&
+             (!('lastSparkDate' in data) || data.lastSparkDate is string) &&
+             (!('score' in data) || data.score is number) &&
+             (!('organization' in data) || data.organization == null || (data.organization is string && data.organization.size() < 100)) &&
+             (!('averagePulse' in data) || data.averagePulse == null || data.averagePulse is number) &&
+             (!('socraticGenome' in data) || data.socraticGenome == null || (
+               data.socraticGenome is map &&
+               (!('strengths' in data.socraticGenome) || data.socraticGenome.strengths is list) &&
+               (!('weaknesses' in data.socraticGenome) || data.socraticGenome.weaknesses is list) &&
+               (!('patterns' in data.socraticGenome) || data.socraticGenome.patterns is list) &&
+               (!('logical_fallacies' in data.socraticGenome) || data.socraticGenome.logical_fallacies is list) &&
+               (!('evidence_relied_on' in data.socraticGenome) || data.socraticGenome.evidence_relied_on is list) &&
+               (!('evidence_neglected' in data.socraticGenome) || data.socraticGenome.evidence_neglected is list) &&
+               (!('lastAnalysis' in data.socraticGenome) || data.socraticGenome.lastAnalysis is string)
+             )) &&
+             (!('createdAt' in data) || data.createdAt is timestamp) &&
+             (!('updatedAt' in data) || data.updatedAt is timestamp);
     }
 
     function isValidProfile(data) {
       return hasOnlyAllowedFields(['uid', 'displayName', 'photoURL', 'streak', 'score', 'organization', 'updatedAt']) &&
              data.uid is string &&
-             (data.displayName == null || (data.displayName is string && data.displayName.size() < 100)) &&
-             (data.photoURL == null || isValidUrl(data.photoURL)) &&
+             (!('displayName' in data) || data.displayName == null || (data.displayName is string && data.displayName.size() < 100)) &&
+             (!('photoURL' in data) || data.photoURL == null || isValidUrl(data.photoURL)) &&
              data.streak is number &&
              data.score is number &&
-             (data.organization == null || (data.organization is string && data.organization.size() < 100)) &&
-             (data.updatedAt == null || data.updatedAt is timestamp);
+             (!('organization' in data) || data.organization == null || (data.organization is string && data.organization.size() < 100)) &&
+             (!('updatedAt' in data) || data.updatedAt is timestamp);
     }
 
     function isValidThought(data) {
@@ -155,6 +165,10 @@ service cloud.firestore {
       
       // Owners can delete their own thoughts.
       allow delete: if isOwner(resource.data.ownerUid) || isAdmin();
+    }
+
+    match /test/{docId} {
+      allow read: if true;
     }
 
     // Default deny

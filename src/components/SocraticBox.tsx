@@ -33,34 +33,40 @@ export function SocraticBox({ weakPoint, fluffDetected, socraticHit, className }
         </div>
       </div>
 
-      <div className="space-y-4 relative z-10">
-        <div className="space-y-2">
-          <div className="flex items-center gap-2 text-[10px] font-bold text-red-400 uppercase tracking-wider">
-            <AlertTriangle size={12} />
+      <div className="space-y-8 relative z-10">
+        <div className="space-y-3">
+          <div className="flex items-center gap-2 text-[10px] font-black text-red-400 uppercase tracking-[0.2em]">
+            <AlertTriangle size={14} />
             <span>Logical Weak Point Detected</span>
           </div>
-          <p className="text-sm italic leading-relaxed text-slate-300 border-l-2 border-red-500/30 pl-4 py-1">
-            "{weakPoint}"
-          </p>
+          <div className="relative">
+            <div className="absolute -left-4 top-0 bottom-0 w-1 bg-red-500/30 rounded-full" />
+            <p className="text-lg font-medium leading-relaxed text-slate-200 pl-4 py-1 italic">
+              "{weakPoint}"
+            </p>
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-2">
           {fluffDetected.map((word, i) => (
             <span
               key={i}
-              className="rounded-full bg-slate-800 px-3 py-1 text-[10px] font-medium text-slate-400 border border-white/5"
+              className="rounded-full bg-white/5 px-3 py-1 text-[10px] font-bold text-slate-400 border border-white/5 uppercase tracking-wider"
             >
               #{word}
             </span>
           ))}
         </div>
 
-        <div className="rounded-xl bg-indigo-500/10 p-4 border border-indigo-500/20">
-          <div className="flex items-center gap-2 text-[10px] font-bold text-indigo-400 uppercase tracking-wider mb-2">
-            <MessageSquare size={12} />
+        <div className="rounded-[2rem] bg-indigo-500/10 p-8 border border-indigo-500/20 relative overflow-hidden group/box">
+          <div className="absolute top-0 right-0 p-4 opacity-5 group-hover/box:opacity-10 transition-opacity">
+            <MessageSquare size={80} />
+          </div>
+          <div className="flex items-center gap-2 text-[10px] font-black text-indigo-400 uppercase tracking-[0.2em] mb-4">
+            <MessageSquare size={14} />
             <span>Socratic Interrogation</span>
           </div>
-          <p className="text-sm font-medium leading-relaxed text-indigo-100">
+          <p className="text-xl font-black leading-tight text-white tracking-tight">
             {socraticHit}
           </p>
         </div>

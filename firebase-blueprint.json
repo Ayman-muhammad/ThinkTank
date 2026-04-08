@@ -16,6 +16,19 @@
         "score": { "type": "integer", "description": "Total gamified score" },
         "organization": { "type": "string", "description": "School, company, or region for leaderboard" },
         "averagePulse": { "type": "number", "description": "Average quality score" },
+        "socraticGenome": {
+          "type": "object",
+          "properties": {
+            "strengths": { "type": "array", "items": { "type": "string" } },
+            "weaknesses": { "type": "array", "items": { "type": "string" } },
+            "patterns": { "type": "array", "items": { "type": "string" } },
+            "logical_fallacies": { "type": "array", "items": { "type": "string" } },
+            "evidence_relied_on": { "type": "array", "items": { "type": "string" } },
+            "evidence_neglected": { "type": "array", "items": { "type": "string" } },
+            "lastAnalysis": { "type": "string", "format": "date-time" }
+          },
+          "description": "User's cognitive profile for adaptive Socratic questioning."
+        },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["uid", "email", "role"]

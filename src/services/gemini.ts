@@ -1,4 +1,4 @@
-import { GoogleGenAI, Type } from "@google/genai";
+import { GoogleGenAI, Type, Modality, ThinkingLevel } from "@google/genai";
 import { db, handleFirestoreError, OperationType } from "../firebase";
 import { collection, addDoc, serverTimestamp } from "firebase/firestore";
 
@@ -10,12 +10,24 @@ export interface ForesightReport {
   resource_requirements: string[];
 }
 
+export interface SocraticGenome {
+  strengths: string[];
+  weaknesses: string[];
+  patterns: string[];
+  logical_fallacies: string[];
+  evidence_relied_on: string[];
+  evidence_neglected: string[];
+  lastAnalysis: string;
+}
+
 export interface MergeResponse {
   refined_text: string;
   quality_score: number;
   human_spark_detected: boolean;
   socratic_follow_up?: string; // For the Socratic Loop
   foresight?: ForesightReport;
+  refined_image?: string; // Base64
+  refined_video?: string; // URI
 }
 
 export interface ReconResponse {
@@ -30,6 +42,8 @@ export interface CriticResponse {
   socratic_hit: string;
   pulse_deduction: number;
   recon_context?: string;
+  summary: string;
+  core_arguments: string[];
 }
 
 export interface AudioAnalysis {
@@ -42,6 +56,24 @@ export interface AudioAnalysis {
 export interface DefaultSpark {
   label: string;
   template: string;
+}
+
+export interface GameChallenge {
+  id: string;
+  flawed_text: string;
+  flaw_type: string;
+  options: string[];
+  correct_index: number;
+  explanation: string;
+}
+
+export interface ChatMessage {
+  role: "user" | "model";
+  text: string;
+  inlineData?: {
+    data: string;
+    mimeType: string;
+  };
 }
 
 export class GeminiService {
@@ -95,21 +127,80 @@ export class GeminiService {
   }
 
   /**
+   * Socratic Genome Analysis - Analyzes user's thinking patterns over time.
+   */
+  async analyzeGenome(history: { originalText: string, refinedText: string, pulseScore: number }[]): Promise<SocraticGenome> {
+    const historyContext = history.map((h, i) => `THOUGHT ${i+1}:\nOriginal: ${h.originalText}\nRefined: ${h.refinedText}\nScore: ${h.pulseScore}`).join("\n\n");
+
+    const response = await this.ai.models.generateContent({
+      model: "gemini-3.1-pro-preview",
+      contents: `Analyze these 5+ verified thoughts to build a "Socratic Genome" for this user:\n\n${historyContext}`,
+      config: {
+        thinkingConfig: { thinkingLevel: ThinkingLevel.HIGH },
+        systemInstruction: `
+          **ROLE**: You are the "ThinkTank Cognitive Psychologist."
+          **OBJECTIVE**: Identify deep patterns in how this user thinks.
+          **GRANULAR ANALYSIS**:
+          1. **Strengths**: What are they good at? (e.g., technical precision, emotional depth).
+          2. **Weaknesses**: Where do they struggle? (e.g., over-generalization, lack of detail).
+          3. **Patterns**: Recurring logical structures or thematic focuses.
+          4. **Logical Fallacies**: Identify common fallacies they employ (e.g., ad hominem, straw man, false dilemma, appeal to authority).
+          5. **Evidence Relied On**: What types of evidence do they consistently use? (e.g., personal anecdotes, technical data, moral arguments).
+          6. **Evidence Neglected**: What types of evidence do they consistently ignore? (e.g., statistical data, opposing viewpoints, long-term consequences).
+          **OUTPUT FORMAT (JSON ONLY)**:
+          {
+            "strengths": ["...", "..."],
+            "weaknesses": ["...", "..."],
+            "patterns": ["...", "..."],
+            "logical_fallacies": ["...", "..."],
+            "evidence_relied_on": ["...", "..."],
+            "evidence_neglected": ["...", "..."],
+            "lastAnalysis": "ISO Date String"
+          }
+        `,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            strengths: { type: Type.ARRAY, items: { type: Type.STRING } },
+            weaknesses: { type: Type.ARRAY, items: { type: Type.STRING } },
+            patterns: { type: Type.ARRAY, items: { type: Type.STRING } },
+            logical_fallacies: { type: Type.ARRAY, items: { type: Type.STRING } },
+            evidence_relied_on: { type: Type.ARRAY, items: { type: Type.STRING } },
+            evidence_neglected: { type: Type.ARRAY, items: { type: Type.STRING } },
+            lastAnalysis: { type: Type.STRING }
+          },
+          required: ["strengths", "weaknesses", "patterns", "logical_fallacies", "evidence_relied_on", "evidence_neglected", "lastAnalysis"]
+        }
+      }
+    });
+
+    return JSON.parse(response.text || "{}");
+  }
+
+  /**
    * The "Brutal Architect" - Scans AI text for logical gaps and fluff.
    */
-  async auditAIText(text: string, model: string = "Standard", reconData?: ReconResponse): Promise<CriticResponse> {
+  async auditAIText(text: string, model: string = "Standard", reconData?: ReconResponse, genome?: SocraticGenome, useHighThinking: boolean = false): Promise<CriticResponse> {
     const reconContext = reconData 
       ? `\nRECON DATA: ${reconData.summary}\nCONTRADICTIONS: ${reconData.contradictions.join(", ")}`
       : "";
 
+    const genomeContext = genome
+      ? `\nUSER GENOME: Strengths: ${genome.strengths.join(", ")}, Weaknesses: ${genome.weaknesses.join(", ")}, Patterns: ${genome.patterns.join(", ")}, Fallacies: ${genome.logical_fallacies.join(", ")}, Relies on: ${genome.evidence_relied_on.join(", ")}, Neglects: ${genome.evidence_neglected.join(", ")}`
+      : "";
+
     const response = await this.ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: `Analyze this AI-generated text: "${text}" using the ${model} model.${reconContext}`,
+      model: useHighThinking ? "gemini-3.1-pro-preview" : "gemini-3-flash-preview",
+      contents: `Analyze this AI-generated text: "${text}" using the ${model} model.${reconContext}${genomeContext}`,
       config: {
+        thinkingConfig: useHighThinking ? { thinkingLevel: ThinkingLevel.HIGH } : undefined,
         systemInstruction: `
           **ROLE**: You are the "ThinkTank Principal Auditor." You are a cynical, high-level Strategic Architect with 25 years of experience. You despise "AI Slop," generic corporate-speak, and unearned confidence.
 
           **AGENTIC CONTEXT**: If RECON DATA is provided, use it to expose hallucinations or outdated info in the text. Your interrogation should be data-driven.
+
+          **SOCRATIC GENOME**: If USER GENOME is provided, adapt your Socratic question to challenge the user's specific weaknesses and patterns. If they are strong in logic but weak in empathy, push them on the human element. If they are prone to over-complication, force them to simplify.
 
           **MODEL CONTEXT**:
           - **Standard**: Balanced audit. Find the most generic part.
@@ -133,6 +224,8 @@ export class GeminiService {
 
           **OUTPUT FORMAT (JSON ONLY)**:
           {
+            "summary": "A concise summary of the AI's response",
+            "core_arguments": ["arg1", "arg2"],
             "weak_point": "The exact sentence you are attacking",
             "fluff_detected": ["word1", "word2"],
             "socratic_hit": "The brutal question that forces a Human Spark",
@@ -144,13 +237,15 @@ export class GeminiService {
         responseSchema: {
           type: Type.OBJECT,
           properties: {
+            summary: { type: Type.STRING },
+            core_arguments: { type: Type.ARRAY, items: { type: Type.STRING } },
             weak_point: { type: Type.STRING },
             fluff_detected: { type: Type.ARRAY, items: { type: Type.STRING } },
             socratic_hit: { type: Type.STRING },
             pulse_deduction: { type: Type.NUMBER },
             recon_context: { type: Type.STRING }
           },
-          required: ["weak_point", "fluff_detected", "socratic_hit", "pulse_deduction"],
+          required: ["summary", "core_arguments", "weak_point", "fluff_detected", "socratic_hit", "pulse_deduction"],
         },
       },
     });
@@ -162,19 +257,30 @@ export class GeminiService {
    * The "Handshake" - Merges the original AI text with the user's "Human Spark".
    * Now supports Socratic Loops and Strategic Foresight.
    */
-  async mergeSpark(originalText: string, spark: string, model: string = "Standard", previousDialogue: string[] = []): Promise<MergeResponse> {
+  async mergeSpark(originalText: string, spark: string, model: string = "Standard", previousDialogue: string[] = [], genome?: SocraticGenome, inputMode: string = "text", base64Data?: string, mimeType?: string, isFinalize: boolean = false, useHighThinking: boolean = false): Promise<MergeResponse> {
     const dialogueContext = previousDialogue.length > 0 
       ? `\nPREVIOUS DIALOGUE: ${previousDialogue.join("\n")}`
       : "";
 
+    const genomeContext = genome
+      ? `\nUSER GENOME: Strengths: ${genome.strengths.join(", ")}, Weaknesses: ${genome.weaknesses.join(", ")}, Patterns: ${genome.patterns.join(", ")}`
+      : "";
+
+    const finalizeInstruction = isFinalize 
+      ? "\n**FORCE FINALIZE**: The user has requested to finalize the synthesis. Do NOT generate a 'socratic_follow_up'. You MUST generate the 'refined_text' and 'foresight' report now."
+      : "";
+
     const response = await this.ai.models.generateContent({
-      model: "gemini-3-flash-preview",
-      contents: `Original AI Text: "${originalText}"\nUser's Human Spark: "${spark}"\nModel: ${model}${dialogueContext}`,
+      model: useHighThinking ? "gemini-3.1-pro-preview" : "gemini-3-flash-preview",
+      contents: `Original AI Text: "${originalText}"\nUser's Human Spark: "${spark}"\nModel: ${model}${dialogueContext}${genomeContext}${finalizeInstruction}`,
       config: {
+        thinkingConfig: useHighThinking ? { thinkingLevel: ThinkingLevel.HIGH } : undefined,
         systemInstruction: `
           **ROLE**: You are the "ThinkTank Master Weaver."
           
           **OBJECTIVE**: Synthesize the original AI draft with the user's raw "Human Spark" to create "Elite Level" output.
+          
+          **SOCRATIC GENOME**: Use the USER GENOME to tailor the "socratic_follow_up" if needed. Challenge their known cognitive biases or patterns.
           
           **SOCRATIC LOOP**: 
           - If the user's spark is shallow, generic, or misses a critical strategic implication, do NOT generate the final output yet. Instead, generate a "socratic_follow_up" question to push them deeper.
@@ -223,7 +329,165 @@ export class GeminiService {
       },
     });
 
-    return JSON.parse(response.text || "{}");
+    const mergeResult: MergeResponse = JSON.parse(response.text || "{}");
+
+    // Multimodal Synthesis
+    if (mergeResult.refined_text && inputMode === "image" && base64Data && mimeType) {
+      mergeResult.refined_image = await this.generateImage(mergeResult.refined_text, base64Data, mimeType);
+    } else if (mergeResult.refined_text && inputMode === "video" && base64Data && mimeType) {
+      mergeResult.refined_video = await this.generateVideo(mergeResult.refined_text, base64Data, mimeType);
+    }
+
+    return mergeResult;
+  }
+
+  /**
+   * Generate High Quality Image based on refined text.
+   */
+  async generateImage(prompt: string, base64Source?: string, mimeType?: string): Promise<string> {
+    const contents: any[] = [{ text: `Generate a high-quality, professional image based on this refined synthesis: "${prompt}". Focus on cinematic lighting and elite detail.` }];
+    
+    if (base64Source && mimeType) {
+      contents.unshift({
+        inlineData: {
+          data: base64Source,
+          mimeType: mimeType
+        }
+      });
+    }
+
+    const response = await this.ai.models.generateContent({
+      model: 'gemini-3.1-flash-image-preview',
+      contents: { parts: contents },
+      config: {
+        imageConfig: {
+          aspectRatio: "16:9",
+          imageSize: "1K"
+        }
+      },
+    });
+
+    for (const part of response.candidates?.[0]?.content?.parts || []) {
+      if (part.inlineData) {
+        return `data:image/png;base64,${part.inlineData.data}`;
+      }
+    }
+    return "";
+  }
+
+  /**
+   * Generate High Quality Video based on refined text.
+   */
+  async generateVideo(prompt: string, base64Source?: string, mimeType?: string): Promise<string> {
+    let operation = await this.ai.models.generateVideos({
+      model: 'veo-3.1-fast-generate-preview',
+      prompt: `A high-quality, cinematic video representing: ${prompt}`,
+      image: base64Source ? {
+        imageBytes: base64Source,
+        mimeType: mimeType || 'image/png'
+      } : undefined,
+      config: {
+        numberOfVideos: 1,
+        resolution: '1080p',
+        aspectRatio: '16:9'
+      }
+    });
+
+    while (!operation.done) {
+      await new Promise(resolve => setTimeout(resolve, 10000));
+      operation = await this.ai.operations.getVideosOperation({ operation: operation });
+    }
+
+    const downloadLink = operation.response?.generatedVideos?.[0]?.video?.uri;
+    if (downloadLink) {
+      const response = await fetch(downloadLink, {
+        method: 'GET',
+        headers: {
+          'x-goog-api-key': apiKey!,
+        },
+      });
+      const blob = await response.blob();
+      return URL.createObjectURL(blob);
+    }
+    return "";
+  }
+
+  /**
+   * Text-to-Speech generation.
+   */
+  async generateTTS(text: string, voice: string = "Kore"): Promise<string> {
+    const response = await this.ai.models.generateContent({
+      model: "gemini-2.5-flash-preview-tts",
+      contents: [{ parts: [{ text: `Speak this with authority and clarity: ${text}` }] }],
+      config: {
+        responseModalities: [Modality.AUDIO],
+        speechConfig: {
+          voiceConfig: {
+            prebuiltVoiceConfig: { voiceName: voice as any },
+          },
+        },
+      },
+    });
+
+    const part = response.candidates?.[0]?.content?.parts?.[0];
+    const base64Audio = part?.inlineData?.data;
+    let mimeType = part?.inlineData?.mimeType;
+    
+    if (base64Audio) {
+      if (!mimeType) {
+        if (base64Audio.startsWith('SUQz') || base64Audio.startsWith('//O')) {
+          mimeType = 'audio/mpeg';
+        } else if (base64Audio.startsWith('UklGR')) {
+          mimeType = 'audio/wav';
+        } else if (base64Audio.startsWith('GkXfo')) {
+          mimeType = 'audio/webm';
+        } else {
+          mimeType = 'audio/mpeg';
+        }
+      }
+      return `data:${mimeType};base64,${base64Audio}`;
+    }
+    return "";
+  }
+
+  /**
+   * Music Generation using Lyria.
+   */
+  async generateMusic(prompt: string, isFullLength: boolean = false): Promise<string> {
+    const response = await this.ai.models.generateContentStream({
+      model: isFullLength ? "lyria-3-pro-preview" : "lyria-3-clip-preview",
+      contents: prompt,
+      config: {
+        responseModalities: [Modality.AUDIO]
+      }
+    });
+
+    let audioBase64 = "";
+    let mimeType = "audio/wav";
+
+    for await (const chunk of response) {
+      const parts = chunk.candidates?.[0]?.content?.parts;
+      if (!parts) continue;
+      for (const part of parts) {
+        if (part.inlineData?.data) {
+          if (!audioBase64 && part.inlineData.mimeType) {
+            mimeType = part.inlineData.mimeType;
+          }
+          audioBase64 += part.inlineData.data;
+        }
+      }
+    }
+
+    if (audioBase64) {
+      const binary = atob(audioBase64);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) {
+        bytes[i] = binary.charCodeAt(i);
+      }
+      const blob = new Blob([bytes], { type: mimeType });
+      return URL.createObjectURL(blob);
+    }
+    return "";
   }
 
   /**
@@ -273,17 +537,69 @@ export class GeminiService {
   }
 
   /**
-   * Generate Default Sparks - Suggests 3 sparks based on AI response.
+   * Multi-turn Chat Interface.
    */
-  async generateDefaultSparks(aiResponse: string): Promise<DefaultSpark[]> {
+  async chat(messages: ChatMessage[], useHighThinking: boolean = false, useGrounding: boolean = false): Promise<string> {
+    const model = useHighThinking ? "gemini-3.1-pro-preview" : "gemini-3-flash-preview";
+    
+    const response = await this.ai.models.generateContent({
+      model,
+      contents: messages.map(m => {
+        const parts: any[] = [{ text: m.text }];
+        if (m.inlineData) {
+          parts.unshift({ inlineData: m.inlineData });
+        }
+        return {
+          role: m.role,
+          parts
+        };
+      }),
+      config: {
+        thinkingConfig: useHighThinking ? { thinkingLevel: ThinkingLevel.HIGH } : undefined,
+        tools: useGrounding ? [{ googleSearch: {} }] : undefined,
+        systemInstruction: `
+          **ROLE**: You are the "ThinkTank Cognitive Assistant."
+          **OBJECTIVE**: Engage in a multi-turn dialogue to help the user refine their thoughts, explore complex ideas, and identify logical inconsistencies.
+          **TONE**: Professional, insightful, and intellectually challenging.
+          **MULTIMODAL**: You can analyze images, PDFs, and videos if provided.
+        `
+      }
+    });
+
+    return response.text || "No response generated.";
+  }
+
+  /**
+   * Low Latency Response for fast tasks.
+   */
+  async fastResponse(prompt: string): Promise<string> {
+    const response = await this.ai.models.generateContent({
+      model: "gemini-3.1-flash-lite-preview",
+      contents: prompt,
+      config: {
+        systemInstruction: "Provide a lightning-fast, concise response."
+      }
+    });
+    return response.text || "";
+  }
+
+  /**
+   * Generate Default Sparks - Suggests 3 sparks based on AI response and audit results.
+   */
+  async generateDefaultSparks(aiResponse: string, weakPoint: string, socraticQuestion: string): Promise<DefaultSpark[]> {
     const response = await this.ai.models.generateContent({
       model: "gemini-3-flash-preview",
-      contents: `Generate 3 "Default Spark" templates for this AI text: "${aiResponse}".`,
+      contents: `Original AI Text: "${aiResponse}"\nWeak Point Identified: "${weakPoint}"\nSocratic Question: "${socraticQuestion}"`,
       config: {
         systemInstruction: `
           **ROLE**: You are the "Laziness Engineer."
           **OBJECTIVE**: Create 3 templates that help a lazy user add a "Human Spark" with minimal effort.
+          **CONTEXT**: The user has been challenged by a Socratic Question about a specific Weak Point in the AI text.
           **FORMAT**: Each template should have a "label" (short) and a "template" (with a blank "______" for the user to fill).
+          **STRATEGY**:
+          1. One template should be a direct answer to the Socratic Question.
+          2. One template should provide the "Local Context" or "Technical Constraint" requested.
+          3. One template should be a "Brutal Truth" or "Real-World Reality Check."
           **EXAMPLE**:
           - Label: "Efficiency Gap"
           - Template: "In my specific case, efficiency means ______"
@@ -342,11 +658,11 @@ export class GeminiService {
   }
 
   /**
-   * Process File - Audits PDF or Video content.
+   * Process File - Audits PDF, Image, or Video content.
    */
-  async processFile(base64Data: string, mimeType: string, model: string = "Standard"): Promise<string> {
+  async processFile(base64Data: string, mimeType: string, model: string = "Standard", useHighThinking: boolean = false): Promise<string> {
     const response = await this.ai.models.generateContent({
-      model: "gemini-3-flash-preview",
+      model: useHighThinking ? "gemini-3.1-pro-preview" : "gemini-3-flash-preview",
       contents: [
         {
           inlineData: {
@@ -355,19 +671,61 @@ export class GeminiService {
           }
         },
         {
-          text: `Analyze the logical structure and claims in this file. Provide a concise summary of the core message and any potential logical gaps. Use the ${model} model.`
+          text: `Analyze the logical structure and claims in this ${mimeType.split('/')[0]}. Provide a concise summary of the core message and any potential logical gaps. Use the ${model} model.`
         }
       ],
       config: {
+        thinkingConfig: useHighThinking ? { thinkingLevel: ThinkingLevel.HIGH } : undefined,
         systemInstruction: `
           **ROLE**: You are the "ThinkTank Document Auditor."
-          **OBJECTIVE**: Extract the core logic from the provided file (PDF or Video). Identify the main claims and any generic or weak points.
+          **OBJECTIVE**: Extract the core logic from the provided file (PDF, Image, or Video). Identify the main claims and any generic or weak points.
           **OUTPUT**: Provide a concise summary that can be audited further by the "Principal Auditor."
         `
       }
     });
 
     return response.text || "Failed to extract content from file.";
+  }
+
+  /**
+   * The "Game Master" - Generates a flawed AI text for the user to audit.
+   */
+  async generateChallenge(): Promise<GameChallenge> {
+    const response = await this.ai.models.generateContent({
+      model: "gemini-3-flash-preview",
+      contents: `Generate a "ThinkTank Audit Challenge". Create a short paragraph (2-3 sentences) that contains a subtle but clear logical fallacy.`,
+      config: {
+        systemInstruction: `
+          **ROLE**: You are the "ThinkTank Game Master."
+          **OBJECTIVE**: Create a challenging audit task for a user.
+          **FALLACY TYPES**: Circular Reasoning, Straw Man, False Dilemma, Ad Hominem, Appeal to Authority, Hasty Generalization, Slippery Slope, Post Hoc Ergo Propter Hoc.
+          **OUTPUT FORMAT (JSON ONLY)**:
+          {
+            "id": "unique_id",
+            "flawed_text": "The text containing the fallacy.",
+            "flaw_type": "The name of the fallacy.",
+            "options": ["Fallacy A", "Fallacy B", "Fallacy C", "Fallacy D"],
+            "correct_index": 0,
+            "explanation": "A brief explanation of why this is the correct fallacy."
+          }
+        `,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            id: { type: Type.STRING },
+            flawed_text: { type: Type.STRING },
+            flaw_type: { type: Type.STRING },
+            options: { type: Type.ARRAY, items: { type: Type.STRING } },
+            correct_index: { type: Type.NUMBER },
+            explanation: { type: Type.STRING }
+          },
+          required: ["id", "flawed_text", "flaw_type", "options", "correct_index", "explanation"]
+        }
+      }
+    });
+
+    return JSON.parse(response.text || "{}");
   }
 
   /**
