@@ -1,4 +1,5 @@
-import React, { useState, useEffect, useRef, lazy, Suspense } from "react";
+import * as React from "react";
+const { useState, useEffect, useRef, lazy, Suspense } = React;
 import { motion, AnimatePresence, stagger, useAnimate } from "motion/react";
 import { 
   Brain, 
@@ -85,7 +86,7 @@ const Leaderboard = lazy(() => import("./components/Leaderboard").then(m => ({ d
 const SettingsModal = lazy(() => import("./components/SettingsModal").then(m => ({ default: m.SettingsModal })));
 const AiVsHumanGame = lazy(() => import("./components/AiVsHumanGame").then(m => ({ default: m.AiVsHumanGame })));
 const SocialShameLeaderboard = lazy(() => import("./components/SocialShameLeaderboard").then(m => ({ default: m.SocialShameLeaderboard })));
-import { CompetitiveAnalysisModal } from "./components/CompetitiveAnalysisModal";
+const CompetitiveAnalysisModal = lazy(() => import("./components/CompetitiveAnalysisModal").then(m => ({ default: m.CompetitiveAnalysisModal })));
 
 type Step = "input" | "auditing" | "interrogation" | "merging" | "review" | "verified";
 type Theme = "light" | "dark";
@@ -121,6 +122,270 @@ const BUSINESS_TYPES = [
   "Retail (D2C Brands)",
   "Hospitality (Smart Hotels)"
 ];
+
+interface SidebarContentProps {
+  user: FirebaseUser | null;
+  chatHistory: any[];
+  loadChatFromHistory: (chat: any) => void;
+  setShowChat: (show: boolean) => void;
+  setIsSidebarOpen: (open: boolean) => void;
+  historySearch: string;
+  setHistorySearch: (search: string) => void;
+  history: ThoughtRecord[];
+  loadFromHistory: (record: ThoughtRecord) => void;
+  userStats: any;
+  setShowGame: (show: boolean) => void;
+  setShowCompetitiveEdge: (show: boolean) => void;
+  setShowLeaderboard: (show: boolean) => void;
+  setShowSettings: (show: boolean) => void;
+  handleLogout: () => void;
+}
+
+const SidebarContent = ({
+  user,
+  chatHistory,
+  loadChatFromHistory,
+  setShowChat,
+  setIsSidebarOpen,
+  historySearch,
+  setHistorySearch,
+  history,
+  loadFromHistory,
+  userStats,
+  setShowGame,
+  setShowCompetitiveEdge,
+  setShowLeaderboard,
+  setShowSettings,
+  handleLogout
+}: SidebarContentProps) => {
+  if (!user) return null;
+  return (
+    <div className="flex flex-col h-full">
+      {/* Sidebar Header */}
+      <div className="p-6 border-b border-white/5 bg-white/[0.02]">
+        <div className="flex items-center gap-3">
+          <div className="h-10 w-10 rounded-xl bg-gold text-navy flex items-center justify-center shadow-lg shadow-gold/20">
+            <Brain size={24} />
+          </div>
+          <div>
+            <h2 className="text-sm font-black text-white uppercase tracking-widest">Vault Protocol</h2>
+            <p className="text-[8px] text-slate-500 font-bold uppercase tracking-widest">Adversarial History</p>
+          </div>
+        </div>
+      </div>
+
+      {/* Chat History Section */}
+      <div className="p-4 border-b border-white/5 bg-gold/5">
+        <p className="px-2 text-[8px] font-black text-gold uppercase tracking-widest mb-3">Recent Chat Sessions</p>
+        <div className="space-y-1">
+          {chatHistory.slice(0, 5).map(chat => (
+            <button
+              key={chat.id}
+              onClick={() => {
+                loadChatFromHistory(chat);
+                setShowChat(true);
+                setIsSidebarOpen(false);
+              }}
+              className="w-full flex items-center gap-3 p-2 rounded-lg text-slate-400 hover:bg-white/5 hover:text-gold transition-all text-left"
+            >
+              <MessageSquare size={12} />
+              <span className="text-[10px] font-bold truncate">{chat.title}</span>
+            </button>
+          ))}
+          {chatHistory.length === 0 && (
+            <p className="px-2 text-[8px] text-slate-600 italic">No active sessions</p>
+          )}
+        </div>
+      </div>
+
+      {/* Search / Filter */}
+      <div className="p-4 border-b border-white/5">
+        <div className="relative group">
+          <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-gold transition-colors" />
+          <input 
+            type="text"
+            placeholder="Search Vault..."
+            value={historySearch}
+            onChange={(e) => setHistorySearch(e.target.value)}
+            className="w-full bg-white/5 border border-white/5 rounded-xl pl-10 pr-4 py-2 text-[10px] font-bold text-white placeholder:text-slate-600 focus:outline-none focus:border-gold/30 transition-all"
+          />
+        </div>
+      </div>
+
+      {/* History List */}
+      <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
+        {history.length === 0 ? (
+          <div className="h-full flex flex-col items-center justify-center text-center space-y-4 opacity-30">
+            <Clock size={32} className="text-slate-600" />
+            <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">No Interrogations Found</p>
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {history
+              .filter(r => r.originalText.toLowerCase().includes(historySearch.toLowerCase()))
+              .map((record) => (
+                <motion.button
+                  key={record.id}
+                  whileHover={{ scale: 1.02, backgroundColor: "rgba(255, 255, 255, 0.05)" }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => loadFromHistory(record)}
+                  className="w-full text-left p-4 rounded-2xl border border-white/5 bg-white/[0.02] transition-all group relative overflow-hidden"
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <div className={cn(
+                        "h-1.5 w-1.5 rounded-full",
+                        record.pulseScore > 80 ? "bg-emerald-500" : record.pulseScore > 50 ? "bg-gold" : "bg-red-500"
+                      )} />
+                      <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                        {record.createdAt?.toDate ? record.createdAt.toDate().toLocaleDateString() : 'Recent'}
+                      </span>
+                    </div>
+                    <span className="text-[10px] font-black text-white">{record.pulseScore}%</span>
+                  </div>
+                  <p className="text-xs text-slate-400 font-medium line-clamp-2 leading-relaxed group-hover:text-slate-200 transition-colors">
+                    {record.originalText}
+                  </p>
+                  <div className="mt-3 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0">
+                    <div className="flex items-center gap-2">
+                      <span className="text-[9px] font-black text-gold uppercase tracking-widest">Restore Protocol</span>
+                      <ArrowRight size={10} className="text-gold" />
+                    </div>
+                    {record.refinedText && (
+                      <div className="flex items-center gap-1 text-[8px] font-bold text-slate-500">
+                        <CheckCircle2 size={8} />
+                        <span>Refined</span>
+                      </div>
+                    )}
+                  </div>
+                </motion.button>
+              ))}
+            
+            {history.length >= 20 && (
+              <motion.button
+                whileHover={{ scale: 1.02, backgroundColor: "rgba(255, 255, 255, 0.05)" }}
+                whileTap={{ scale: 0.98 }}
+                className="w-full py-4 rounded-2xl border border-dashed border-white/10 text-[10px] font-black text-slate-500 uppercase tracking-widest hover:text-gold hover:border-gold/30 transition-all"
+              >
+                Access Full Vault History
+              </motion.button>
+            )}
+          </div>
+        )}
+      </div>
+      
+      {/* Sidebar Footer / Profile */}
+      <div className="p-6 border-t border-white/5 bg-black/40 space-y-6">
+        {/* User Info */}
+        <div className="flex items-center gap-4">
+          <div className="relative">
+            {user.photoURL ? (
+              <img src={user.photoURL} alt="" className="h-12 w-12 rounded-2xl border-2 border-white/10 shadow-xl" referrerPolicy="no-referrer" />
+            ) : (
+              <div className="h-12 w-12 rounded-2xl bg-linear-to-br from-indigo-500 to-purple-600 border border-white/10 flex items-center justify-center text-white shadow-xl">
+                <UserIcon size={24} />
+              </div>
+            )}
+            <div className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-emerald-500 border-2 border-slate-900 shadow-lg" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <p className="text-sm font-black text-white truncate tracking-tight">{user.displayName || user.email?.split('@')[0] || 'Elite User'}</p>
+            <div className="flex items-center gap-1.5">
+              <ShieldCheck size={10} className="text-gold" />
+              <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest truncate">{userStats.organization || 'Independent Thinker'}</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Socratic Genome Bento */}
+        {userStats.socraticGenome && (
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Socratic Genome</p>
+              <div className="px-2 py-0.5 rounded-md bg-gold/10 text-gold text-[8px] font-black uppercase tracking-widest">Level {Math.floor(userStats.score / 1000) + 1}</div>
+            </div>
+            <div className="grid grid-cols-2 gap-2">
+              <div className="p-3 rounded-xl bg-white/[0.03] border border-white/5 space-y-1.5">
+                <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">Fortitude</p>
+                <div className="flex flex-wrap gap-1">
+                  {userStats.socraticGenome.strengths.slice(0, 2).map((s: string, i: number) => (
+                    <span key={i} className="text-[9px] font-bold text-slate-400 truncate w-full">• {s}</span>
+                  ))}
+                </div>
+              </div>
+              <div className="p-3 rounded-xl bg-white/[0.03] border border-white/5 space-y-1.5">
+                <p className="text-[8px] font-black text-red-400 uppercase tracking-widest">Blindspots</p>
+                <div className="flex flex-wrap gap-1">
+                  {userStats.socraticGenome.weaknesses.slice(0, 2).map((w: string, i: number) => (
+                    <span key={i} className="text-[9px] font-bold text-slate-400 truncate w-full">• {w}</span>
+                  ))}
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* Action Grid */}
+        <div className="grid grid-cols-3 gap-2">
+          <motion.button 
+            whileHover={{ scale: 1.02, backgroundColor: "rgba(212, 175, 55, 0.15)" }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => setShowGame(true)}
+            className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl bg-gold/10 border border-gold/20 text-gold transition-all"
+          >
+            <ShieldAlert size={16} />
+            <span className="text-[8px] font-black uppercase tracking-widest">Audit</span>
+          </motion.button>
+          <motion.button 
+            whileHover={{ scale: 1.02, backgroundColor: "rgba(16, 185, 129, 0.15)" }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => {
+              setShowCompetitiveEdge(true);
+              setIsSidebarOpen(false);
+            }}
+            className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 transition-all"
+          >
+            <TrendingUp size={16} />
+            <span className="text-[8px] font-black uppercase tracking-widest">Edge</span>
+          </motion.button>
+          <motion.button 
+            whileHover={{ scale: 1.02, backgroundColor: "rgba(212, 175, 55, 0.15)" }}
+            whileTap={{ scale: 0.98 }}
+            onClick={() => {
+              setShowLeaderboard(true);
+              setIsSidebarOpen(false);
+            }}
+            className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl bg-gold/10 border border-gold/20 text-gold transition-all"
+          >
+            <Trophy size={16} />
+            <span className="text-[8px] font-black uppercase tracking-widest">Rank</span>
+          </motion.button>
+        </div>
+
+        {/* Secondary Actions */}
+        <div className="flex items-center gap-2">
+          <motion.button 
+            whileHover={{ scale: 1.05, backgroundColor: "rgba(255, 255, 255, 0.1)" }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setShowSettings(true)}
+            className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/5 text-slate-400 text-[10px] font-black uppercase tracking-widest hover:text-white transition-all"
+          >
+            <Settings size={14} />
+            <span>Settings</span>
+          </motion.button>
+          <motion.button 
+            whileHover={{ scale: 1.05, backgroundColor: "rgba(239, 68, 68, 0.1)" }}
+            whileTap={{ scale: 0.95 }}
+            onClick={handleLogout}
+            className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-500/5 text-red-400 hover:bg-red-500/10 transition-all"
+          >
+            <LogOut size={16} />
+          </motion.button>
+        </div>
+      </div>
+    </div>
+  );
+};
 
 export default function App() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
@@ -648,235 +913,6 @@ export default function App() {
     }
   };
 
-  const SidebarContent = () => {
-    if (!user) return null;
-    return (
-      <div className="flex flex-col h-full">
-        {/* Sidebar Header */}
-        <div className="p-6 border-b border-white/5 bg-white/[0.02]">
-          <div className="flex items-center gap-3">
-            <div className="h-10 w-10 rounded-xl bg-gold text-navy flex items-center justify-center shadow-lg shadow-gold/20">
-              <Brain size={24} />
-            </div>
-            <div>
-              <h2 className="text-sm font-black text-white uppercase tracking-widest">Vault Protocol</h2>
-              <p className="text-[8px] text-slate-500 font-bold uppercase tracking-widest">Adversarial History</p>
-            </div>
-          </div>
-        </div>
-
-        {/* Chat History Section */}
-        <div className="p-4 border-b border-white/5 bg-gold/5">
-          <p className="px-2 text-[8px] font-black text-gold uppercase tracking-widest mb-3">Recent Chat Sessions</p>
-          <div className="space-y-1">
-            {chatHistory.slice(0, 5).map(chat => (
-              <button
-                key={chat.id}
-                onClick={() => {
-                  loadChatFromHistory(chat);
-                  setShowChat(true);
-                  setIsSidebarOpen(false);
-                }}
-                className="w-full flex items-center gap-3 p-2 rounded-lg text-slate-400 hover:bg-white/5 hover:text-gold transition-all text-left"
-              >
-                <MessageSquare size={12} />
-                <span className="text-[10px] font-bold truncate">{chat.title}</span>
-              </button>
-            ))}
-            {chatHistory.length === 0 && (
-              <p className="px-2 text-[8px] text-slate-600 italic">No active sessions</p>
-            )}
-          </div>
-        </div>
-
-        {/* Search / Filter */}
-        <div className="p-4 border-b border-white/5">
-          <div className="relative group">
-            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-gold transition-colors" />
-            <input 
-              type="text"
-              placeholder="Search Vault..."
-              value={historySearch}
-              onChange={(e) => setHistorySearch(e.target.value)}
-              className="w-full bg-white/5 border border-white/5 rounded-xl pl-10 pr-4 py-2 text-[10px] font-bold text-white placeholder:text-slate-600 focus:outline-none focus:border-gold/30 transition-all"
-            />
-          </div>
-        </div>
-
-        {/* History List */}
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
-          {history.length === 0 ? (
-            <div className="h-full flex flex-col items-center justify-center text-center space-y-4 opacity-30">
-              <Clock size={32} className="text-slate-600" />
-              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">No Interrogations Found</p>
-            </div>
-          ) : (
-            <div className="space-y-3">
-              {history
-                .filter(r => r.originalText.toLowerCase().includes(historySearch.toLowerCase()))
-                .map((record) => (
-                  <motion.button
-                    key={record.id}
-                    whileHover={{ scale: 1.02, backgroundColor: "rgba(255, 255, 255, 0.05)" }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => loadFromHistory(record)}
-                    className="w-full text-left p-4 rounded-2xl border border-white/5 bg-white/[0.02] transition-all group relative overflow-hidden"
-                  >
-                    <div className="flex items-center justify-between mb-2">
-                      <div className="flex items-center gap-2">
-                        <div className={cn(
-                          "h-1.5 w-1.5 rounded-full",
-                          record.pulseScore > 80 ? "bg-emerald-500" : record.pulseScore > 50 ? "bg-gold" : "bg-red-500"
-                        )} />
-                        <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">
-                          {record.createdAt?.toDate ? record.createdAt.toDate().toLocaleDateString() : 'Recent'}
-                        </span>
-                      </div>
-                      <span className="text-[10px] font-black text-white">{record.pulseScore}%</span>
-                    </div>
-                    <p className="text-xs text-slate-400 font-medium line-clamp-2 leading-relaxed group-hover:text-slate-200 transition-colors">
-                      {record.originalText}
-                    </p>
-                    <div className="mt-3 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-[9px] font-black text-gold uppercase tracking-widest">Restore Protocol</span>
-                        <ArrowRight size={10} className="text-gold" />
-                      </div>
-                      {record.refinedText && (
-                        <div className="flex items-center gap-1 text-[8px] font-bold text-slate-500">
-                          <CheckCircle2 size={8} />
-                          <span>Refined</span>
-                        </div>
-                      )}
-                    </div>
-                  </motion.button>
-                ))}
-              
-              {history.length >= 20 && (
-                <motion.button
-                  whileHover={{ scale: 1.02, backgroundColor: "rgba(255, 255, 255, 0.05)" }}
-                  whileTap={{ scale: 0.98 }}
-                  className="w-full py-4 rounded-2xl border border-dashed border-white/10 text-[10px] font-black text-slate-500 uppercase tracking-widest hover:text-gold hover:border-gold/30 transition-all"
-                >
-                  Access Full Vault History
-                </motion.button>
-              )}
-            </div>
-          )}
-        </div>
-        
-        {/* Sidebar Footer / Profile */}
-        <div className="p-6 border-t border-white/5 bg-black/40 space-y-6">
-          {/* User Info */}
-          <div className="flex items-center gap-4">
-            <div className="relative">
-              {user.photoURL ? (
-                <img src={user.photoURL} alt="" className="h-12 w-12 rounded-2xl border-2 border-white/10 shadow-xl" />
-              ) : (
-                <div className="h-12 w-12 rounded-2xl bg-linear-to-br from-indigo-500 to-purple-600 border border-white/10 flex items-center justify-center text-white shadow-xl">
-                  <UserIcon size={24} />
-                </div>
-              )}
-              <div className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-emerald-500 border-2 border-slate-900 shadow-lg" />
-            </div>
-            <div className="flex-1 min-w-0">
-              <p className="text-sm font-black text-white truncate tracking-tight">{user.displayName || user.email?.split('@')[0] || 'Elite User'}</p>
-              <div className="flex items-center gap-1.5">
-                <ShieldCheck size={10} className="text-gold" />
-                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest truncate">{userStats.organization || 'Independent Thinker'}</p>
-              </div>
-            </div>
-          </div>
-
-          {/* Socratic Genome Bento */}
-          {userStats.socraticGenome && (
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Socratic Genome</p>
-                <div className="px-2 py-0.5 rounded-md bg-gold/10 text-gold text-[8px] font-black uppercase tracking-widest">Level {Math.floor(userStats.score / 1000) + 1}</div>
-              </div>
-              <div className="grid grid-cols-2 gap-2">
-                <div className="p-3 rounded-xl bg-white/[0.03] border border-white/5 space-y-1.5">
-                  <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">Fortitude</p>
-                  <div className="flex flex-wrap gap-1">
-                    {userStats.socraticGenome.strengths.slice(0, 2).map((s, i) => (
-                      <span key={i} className="text-[9px] font-bold text-slate-400 truncate w-full">• {s}</span>
-                    ))}
-                  </div>
-                </div>
-                <div className="p-3 rounded-xl bg-white/[0.03] border border-white/5 space-y-1.5">
-                  <p className="text-[8px] font-black text-red-400 uppercase tracking-widest">Blindspots</p>
-                  <div className="flex flex-wrap gap-1">
-                    {userStats.socraticGenome.weaknesses.slice(0, 2).map((w, i) => (
-                      <span key={i} className="text-[9px] font-bold text-slate-400 truncate w-full">• {w}</span>
-                    ))}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-
-          {/* Action Grid */}
-          <div className="grid grid-cols-3 gap-2">
-            <motion.button 
-              whileHover={{ scale: 1.02, backgroundColor: "rgba(212, 175, 55, 0.15)" }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => setShowGame(true)}
-              className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl bg-gold/10 border border-gold/20 text-gold transition-all"
-            >
-              <ShieldAlert size={16} />
-              <span className="text-[8px] font-black uppercase tracking-widest">Audit</span>
-            </motion.button>
-            <motion.button 
-              whileHover={{ scale: 1.02, backgroundColor: "rgba(16, 185, 129, 0.15)" }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => {
-                setShowCompetitiveEdge(true);
-                setIsSidebarOpen(false);
-              }}
-              className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 transition-all"
-            >
-              <TrendingUp size={16} />
-              <span className="text-[8px] font-black uppercase tracking-widest">Edge</span>
-            </motion.button>
-            <motion.button 
-              whileHover={{ scale: 1.02, backgroundColor: "rgba(212, 175, 55, 0.15)" }}
-              whileTap={{ scale: 0.98 }}
-              onClick={() => {
-                setShowLeaderboard(true);
-                setIsSidebarOpen(false);
-              }}
-              className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl bg-gold/10 border border-gold/20 text-gold transition-all"
-            >
-              <Trophy size={16} />
-              <span className="text-[8px] font-black uppercase tracking-widest">Rank</span>
-            </motion.button>
-          </div>
-
-          {/* Secondary Actions */}
-          <div className="flex items-center gap-2">
-            <motion.button 
-              whileHover={{ scale: 1.05, backgroundColor: "rgba(255, 255, 255, 0.1)" }}
-              whileTap={{ scale: 0.95 }}
-              onClick={() => setShowSettings(true)}
-              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/5 text-slate-400 text-[10px] font-black uppercase tracking-widest hover:text-white transition-all"
-            >
-              <Settings size={14} />
-              <span>Settings</span>
-            </motion.button>
-            <motion.button 
-              whileHover={{ scale: 1.05, backgroundColor: "rgba(239, 68, 68, 0.1)" }}
-              whileTap={{ scale: 0.95 }}
-              onClick={handleLogout}
-              className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-500/5 text-red-400 hover:bg-red-500/10 transition-all"
-            >
-              <LogOut size={16} />
-            </motion.button>
-          </div>
-        </div>
-      </div>
-    );
-  };
   const handleChatFileUpload = (file: File) => {
     const reader = new FileReader();
     reader.onload = (e) => {
@@ -1620,7 +1656,23 @@ export default function App() {
       {/* Persistent Desktop Sidebar */}
       {user && (
         <aside className="hidden lg:flex w-80 border-r border-navy/5 dark:border-white/5 flex-col bg-white dark:bg-slate-900/50 backdrop-blur-xl sticky top-0 h-screen overflow-hidden">
-          <SidebarContent />
+          <SidebarContent 
+            user={user}
+            chatHistory={chatHistory}
+            loadChatFromHistory={loadChatFromHistory}
+            setShowChat={setShowChat}
+            setIsSidebarOpen={setIsSidebarOpen}
+            historySearch={historySearch}
+            setHistorySearch={setHistorySearch}
+            history={history}
+            loadFromHistory={loadFromHistory}
+            userStats={userStats}
+            setShowGame={setShowGame}
+            setShowCompetitiveEdge={setShowCompetitiveEdge}
+            setShowLeaderboard={setShowLeaderboard}
+            setShowSettings={setShowSettings}
+            handleLogout={handleLogout}
+          />
         </aside>
       )}
 
@@ -1642,7 +1694,23 @@ export default function App() {
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
               className="fixed inset-y-0 left-0 w-80 bg-slate-900 border-r border-white/10 z-[110] flex flex-col lg:hidden"
             >
-              <SidebarContent />
+              <SidebarContent 
+                user={user}
+                chatHistory={chatHistory}
+                loadChatFromHistory={loadChatFromHistory}
+                setShowChat={setShowChat}
+                setIsSidebarOpen={setIsSidebarOpen}
+                historySearch={historySearch}
+                setHistorySearch={setHistorySearch}
+                history={history}
+                loadFromHistory={loadFromHistory}
+                userStats={userStats}
+                setShowGame={setShowGame}
+                setShowCompetitiveEdge={setShowCompetitiveEdge}
+                setShowLeaderboard={setShowLeaderboard}
+                setShowSettings={setShowSettings}
+                handleLogout={handleLogout}
+              />
             </motion.aside>
           </>
         )}
@@ -3235,11 +3303,12 @@ export default function App() {
       </AnimatePresence>
 
       {/* Competitive Edge Dashboard Modal */}
-      {/* Competitive Edge Dashboard Modal */}
-      <CompetitiveAnalysisModal 
-        isOpen={showCompetitiveEdge} 
-        onClose={() => setShowCompetitiveEdge(false)} 
-      />
+      <Suspense fallback={null}>
+        <CompetitiveAnalysisModal 
+          isOpen={showCompetitiveEdge} 
+          onClose={() => setShowCompetitiveEdge(false)} 
+        />
+      </Suspense>
       </div>
     </div>
   );

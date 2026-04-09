@@ -1,4 +1,4 @@
-import React from "react";
+import * as React from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { Shield, Download, Share2, X, CheckCircle2, Award, User as UserIcon, Calendar, Hash } from "lucide-react";
 import { cn } from "../lib/utils";

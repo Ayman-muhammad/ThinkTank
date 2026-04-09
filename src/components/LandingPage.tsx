@@ -1,4 +1,4 @@
-import React from "react";
+import * as React from "react";
 import { motion, AnimatePresence } from "motion/react";
 import { 
   Brain, Shield, Zap, ArrowRight, CheckCircle2, XCircle, 
@@ -7,6 +7,7 @@ import {
 } from "lucide-react";
 import { cn } from "../lib/utils";
 import { ThemeToggle } from "./ThemeToggle";
+import { ASSETS } from "../lib/constants";
 
 interface LandingPageProps {
   onStart: () => void;
@@ -15,8 +16,6 @@ interface LandingPageProps {
   freeAttempts: number;
   isLoggedIn: boolean;
 }
-
-const FOUNDER_IMAGE = "https://storage.googleapis.com/applet-assets/ffdc433a-a909-4254-b30a-6a549152929b/input_file_0.png";
 
 export function LandingPage({ onStart, theme, toggleTheme, freeAttempts, isLoggedIn }: LandingPageProps) {
   const [founderTab, setFounderTab] = React.useState<"Vision" | "Background" | "Philosophy">("Vision");
@@ -454,7 +453,7 @@ export function LandingPage({ onStart, theme, toggleTheme, freeAttempts, isLogge
               <div className="absolute -inset-4 bg-gold/20 blur-2xl rounded-full animate-pulse" />
               <div className="relative aspect-square overflow-hidden rounded-[3rem] border-8 border-white dark:border-slate-900 shadow-2xl">
                 <img 
-                  src={FOUNDER_IMAGE} 
+                  src={ASSETS.IMAGES.FOUNDER} 
                   alt="ThinkTank Founder" 
                   className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-700"
                   referrerPolicy="no-referrer"
