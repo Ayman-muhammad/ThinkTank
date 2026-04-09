@@ -16,6 +16,8 @@ interface LandingPageProps {
   isLoggedIn: boolean;
 }
 
+const FOUNDER_IMAGE = "https://storage.googleapis.com/applet-assets/ffdc433a-a909-4254-b30a-6a549152929b/input_file_0.png";
+
 export function LandingPage({ onStart, theme, toggleTheme, freeAttempts, isLoggedIn }: LandingPageProps) {
   const [founderTab, setFounderTab] = React.useState<"Vision" | "Background" | "Philosophy">("Vision");
 
@@ -452,15 +454,15 @@ export function LandingPage({ onStart, theme, toggleTheme, freeAttempts, isLogge
               <div className="absolute -inset-4 bg-gold/20 blur-2xl rounded-full animate-pulse" />
               <div className="relative aspect-square overflow-hidden rounded-[3rem] border-8 border-white dark:border-slate-900 shadow-2xl">
                 <img 
-                  src="https://picsum.photos/seed/founder-tt/800/800" 
+                  src={FOUNDER_IMAGE} 
                   alt="ThinkTank Founder" 
                   className="w-full h-full object-cover grayscale hover:grayscale-0 transition-all duration-700"
                   referrerPolicy="no-referrer"
                 />
               </div>
               <div className="absolute -bottom-6 -right-6 bg-gold text-navy p-6 rounded-3xl shadow-xl">
-                <div className="text-2xl font-black font-serif">Ayman M.</div>
-                <div className="text-[10px] font-bold uppercase tracking-widest opacity-70">Chief Architect</div>
+                <div className="text-2xl font-black font-serif">Fayez Ayman</div>
+                <div className="text-[10px] font-bold uppercase tracking-widest opacity-70">Chief Architect & Founder</div>
               </div>
             </motion.div>
 
@@ -561,29 +563,214 @@ export function LandingPage({ onStart, theme, toggleTheme, freeAttempts, isLogge
         </div>
       </section>
 
-      {/* Section 3: The Science */}
-      <section className="py-32 px-6">
-        <div className="mx-auto max-w-7xl">
-          <div className="text-center mb-20">
+      {/* Section 3: The Cognitive Science Lab */}
+      <section className="py-32 px-6 bg-slate-50 dark:bg-slate-900/10 relative overflow-hidden">
+        {/* Background decorative elements */}
+        <div className="absolute top-0 left-0 w-full h-full pointer-events-none opacity-30">
+          <div className="absolute top-1/4 left-0 w-64 h-64 bg-gold/10 blur-3xl rounded-full" />
+          <div className="absolute bottom-1/4 right-0 w-96 h-96 bg-indigo-500/10 blur-3xl rounded-full" />
+        </div>
+
+        <div className="mx-auto max-w-7xl relative z-10">
+          <div className="text-center mb-24">
             <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              whileInView={{ opacity: 1, y: 0 }}
+              initial={{ opacity: 0, scale: 0.8 }}
+              whileInView={{ opacity: 1, scale: 1 }}
               viewport={{ once: true }}
-              className="inline-block p-3 rounded-2xl bg-gold/10 text-gold mb-6"
+              className="inline-flex items-center gap-2 rounded-full border border-gold/20 bg-gold/5 px-4 py-1.5 text-xs font-bold uppercase tracking-widest text-gold mb-6"
             >
-              <BarChart3 size={32} />
+              <BarChart3 size={14} />
+              <span>The Science of Thought</span>
             </motion.div>
             <motion.h2
               initial={{ opacity: 0, y: 20 }}
               whileInView={{ opacity: 1, y: 0 }}
               viewport={{ once: true }}
-              className="text-4xl md:text-5xl font-black text-navy dark:text-white font-serif"
+              className="text-4xl md:text-6xl font-black text-navy dark:text-white font-serif leading-tight"
             >
-              This isn't opinion. It's peer-reviewed.
+              AI is a Mirror.<br />
+              <span className="text-gold">You are the Source.</span>
             </motion.h2>
+            <p className="mt-6 text-xl text-slate-500 dark:text-slate-400 max-w-2xl mx-auto leading-relaxed">
+              ThinkTank is built on the latest cognitive research, protecting the "Human Spark" that AI can only mimic, never originate.
+            </p>
           </div>
-          
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
+
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+            {/* Research Card 1: Pattern Matching */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              className="group relative flex flex-col overflow-hidden rounded-[2.5rem] bg-white dark:bg-slate-900 border border-navy/5 shadow-xl hover:shadow-2xl transition-all duration-500"
+            >
+              <div className="relative h-64 overflow-hidden">
+                <motion.img 
+                  animate={{ 
+                    y: [0, -10, 0],
+                    scale: [1, 1.05, 1]
+                  }}
+                  transition={{ 
+                    duration: 8, 
+                    repeat: Infinity, 
+                    ease: "easeInOut" 
+                  }}
+                  whileHover={{ scale: 1.1, rotate: 1 }}
+                  src="https://picsum.photos/seed/pattern-matching-ai/800/600" 
+                  alt="Pattern Matching" 
+                  className="w-full h-full object-cover transition-transform duration-700"
+                  referrerPolicy="no-referrer"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-navy/80 via-navy/20 to-transparent" />
+                <div className="absolute bottom-6 left-6 right-6">
+                  <div className="flex items-center gap-2 text-gold mb-2">
+                    <Zap size={16} />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Research: Martha Lewis</span>
+                  </div>
+                  <h3 className="text-xl font-bold text-white">Pattern Matching vs. Understanding</h3>
+                </div>
+              </div>
+              <div className="p-8 space-y-4">
+                <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+                  AI excels at identifying patterns in massive datasets, but lacks <strong>"zero-shot" learning</strong>—the ability to generalize rules from a single example.
+                </p>
+                <div className="pt-4 border-t border-navy/5 dark:border-white/5">
+                  <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">
+                    <span>Cognitive Depth</span>
+                    <span className="text-rose-500">AI: Surface</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      whileInView={{ width: "35%" }}
+                      viewport={{ once: true }}
+                      transition={{ duration: 1.5, delay: 0.5 }}
+                      className="h-full bg-rose-500"
+                    />
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Research Card 2: The Memory Paradox */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.1 }}
+              className="group relative flex flex-col overflow-hidden rounded-[2.5rem] bg-navy text-white shadow-2xl shadow-navy/20"
+            >
+              <div className="relative h-64 overflow-hidden">
+                <motion.img 
+                  animate={{ 
+                    y: [0, 10, 0],
+                    scale: [1, 1.03, 1]
+                  }}
+                  transition={{ 
+                    duration: 10, 
+                    repeat: Infinity, 
+                    ease: "easeInOut" 
+                  }}
+                  whileHover={{ scale: 1.1, rotate: -1 }}
+                  src="https://picsum.photos/seed/memory-paradox-neuro/800/600" 
+                  alt="Memory Paradox" 
+                  className="w-full h-full object-cover opacity-60 transition-transform duration-700"
+                  referrerPolicy="no-referrer"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-navy to-transparent" />
+                <div className="absolute bottom-6 left-6 right-6">
+                  <div className="flex items-center gap-2 text-gold mb-2">
+                    <Brain size={16} />
+                    <span className="text-[10px] font-black uppercase tracking-widest">Neuroscience Insight</span>
+                  </div>
+                  <h3 className="text-xl font-bold">The "Memory Paradox"</h3>
+                </div>
+              </div>
+              <div className="p-8 space-y-4">
+                <p className="text-sm text-slate-300 leading-relaxed">
+                  Habitual AI offloading erodes the memory skills essential for <strong>intuitive reasoning</strong>. ThinkTank forces active recall, keeping your neural pathways sharp.
+                </p>
+                <div className="pt-4 border-t border-white/10">
+                  <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">
+                    <span>Neural Retention</span>
+                    <span className="text-gold">T.T. Active</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-white/10 rounded-full overflow-hidden">
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      whileInView={{ width: "92%" }}
+                      viewport={{ once: true }}
+                      transition={{ duration: 1.5, delay: 0.7 }}
+                      className="h-full bg-gold shadow-[0_0_10px_rgba(212,175,55,0.5)]"
+                    />
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+
+            {/* Research Card 3: The Copy-Paste Trap */}
+            <motion.div
+              initial={{ opacity: 0, y: 30 }}
+              whileInView={{ opacity: 1, y: 0 }}
+              viewport={{ once: true }}
+              transition={{ delay: 0.2 }}
+              className="group relative flex flex-col overflow-hidden rounded-[2.5rem] bg-white dark:bg-slate-900 border border-navy/5 shadow-xl hover:shadow-2xl transition-all duration-500"
+            >
+              <div className="relative h-64 overflow-hidden">
+                <motion.img 
+                  animate={{ 
+                    x: [-5, 5, -5],
+                    scale: [1, 1.04, 1]
+                  }}
+                  transition={{ 
+                    duration: 12, 
+                    repeat: Infinity, 
+                    ease: "easeInOut" 
+                  }}
+                  whileHover={{ scale: 1.1, rotate: 1 }}
+                  src="https://picsum.photos/seed/ai-copy-paste-trap/800/600" 
+                  alt="Copy-Paste Trap" 
+                  className="w-full h-full object-cover transition-transform duration-700"
+                  referrerPolicy="no-referrer"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-navy/80 via-navy/20 to-transparent" />
+                <div className="absolute bottom-6 left-6 right-6">
+                  <div className="flex items-center gap-2 text-gold mb-2">
+                    <Shield size={16} />
+                    <span className="text-[10px] font-black uppercase tracking-widest">U.S. Copyright Office</span>
+                  </div>
+                  <h3 className="text-xl font-bold text-white">The "Copy-Paste" Trap</h3>
+                </div>
+              </div>
+              <div className="p-8 space-y-4">
+                <p className="text-sm text-slate-500 dark:text-slate-400 leading-relaxed">
+                  AI training creates "perfect copies." Humans retain <strong>imperfect impressions</strong> filtered through personality—the very source of creative genius.
+                </p>
+                <div className="pt-4 border-t border-navy/5 dark:border-white/5">
+                  <div className="flex items-center justify-between text-[10px] font-black uppercase tracking-widest text-slate-400 mb-2">
+                    <span>Originality Index</span>
+                    <span className="text-emerald-500">Human: Max</span>
+                  </div>
+                  <div className="h-1.5 w-full bg-slate-100 dark:bg-slate-800 rounded-full overflow-hidden">
+                    <motion.div 
+                      initial={{ width: 0 }}
+                      whileInView={{ width: "98%" }}
+                      viewport={{ once: true }}
+                      transition={{ duration: 1.5, delay: 0.9 }}
+                      className="h-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]"
+                    />
+                  </div>
+                </div>
+              </div>
+            </motion.div>
+          </div>
+
+          {/* Peer Reviewed Section */}
+          <div className="mt-32 pt-32 border-t border-navy/5 dark:border-white/5">
+            <div className="text-center mb-16">
+              <h3 className="text-2xl font-black text-navy dark:text-white font-serif">This isn't opinion. It's peer-reviewed.</h3>
+            </div>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
             {[
               {
                 source: "Harvard Gazette (2025)",
@@ -623,7 +810,8 @@ export function LandingPage({ onStart, theme, toggleTheme, freeAttempts, isLogge
             ))}
           </div>
         </div>
-      </section>
+      </div>
+    </section>
 
       {/* Section 4: How It Works */}
       <section className="py-32 px-6 bg-navy text-white overflow-hidden relative">

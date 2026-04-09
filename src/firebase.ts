@@ -27,13 +27,20 @@ import {
 import firebaseConfig from "../firebase-applet-config.json";
 
 // Initialize Firebase
-const app = initializeApp(firebaseConfig);
+const firebaseConfigValues = (firebaseConfig as any).default || firebaseConfig;
+const app = initializeApp(firebaseConfigValues);
 export const auth = getAuth(app);
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+
+// Initialize Firestore
+const dbId = firebaseConfigValues.firestoreDatabaseId;
+export const db = (dbId && dbId !== "" && dbId !== "(default)") 
+  ? getFirestore(app, dbId) 
+  : getFirestore(app);
+
 export const googleProvider = new GoogleAuthProvider();
 
-// Connection test
-async function testConnection() {
+// Connection test (optional, can be called from App.tsx)
+export async function testConnection() {
   try {
     await getDocFromServer(doc(db, 'test', 'connection'));
   } catch (error) {
@@ -42,7 +49,6 @@ async function testConnection() {
     }
   }
 }
-testConnection();
 
 // Auth Helpers
 export const loginWithGoogle = () => signInWithPopup(auth, googleProvider);

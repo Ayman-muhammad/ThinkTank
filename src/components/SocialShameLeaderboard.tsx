@@ -43,6 +43,11 @@ export const SocialShameLeaderboard: React.FC<SocialShameLeaderboardProps> = ({
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
+    if (!db) {
+      console.error("Firestore database instance (db) is not initialized.");
+      setIsLoading(false);
+      return;
+    }
     setIsLoading(true);
     let q = query(collection(db, 'profiles'), orderBy('score', 'desc'), limit(50));
 

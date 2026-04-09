@@ -32,6 +32,10 @@ export function Leaderboard({ onClose, currentUserId }: LeaderboardProps) {
     async function fetchLeaderboard() {
       setIsLoading(true);
       try {
+        if (!db) {
+          console.error("Firestore database instance (db) is not initialized.");
+          return;
+        }
         let q = query(
           collection(db, "profiles"),
           orderBy("score", "desc"),

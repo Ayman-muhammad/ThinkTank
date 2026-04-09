@@ -48,12 +48,20 @@ import {
   BookOpen,
   Volume2,
   Settings,
+  TrendingUp,
+  Target,
+  Activity,
+  Globe,
+  Trash2,
   Play,
   Pause,
-  Filter,
-  Clock,
   Save,
-  Trash2
+  Clock,
+  Menu,
+  Quote,
+  Filter,
+  Maximize2,
+  Minimize2
 } from "lucide-react";
 import ReactMarkdown from "react-markdown";
 import { gemini, type CriticResponse, type MergeResponse, type ReconResponse, type AudioAnalysis, type DefaultSpark, type SocraticGenome, type ChatMessage } from "./services/gemini";
@@ -77,6 +85,7 @@ const Leaderboard = lazy(() => import("./components/Leaderboard").then(m => ({ d
 const SettingsModal = lazy(() => import("./components/SettingsModal").then(m => ({ default: m.SettingsModal })));
 const AiVsHumanGame = lazy(() => import("./components/AiVsHumanGame").then(m => ({ default: m.AiVsHumanGame })));
 const SocialShameLeaderboard = lazy(() => import("./components/SocialShameLeaderboard").then(m => ({ default: m.SocialShameLeaderboard })));
+import { CompetitiveAnalysisModal } from "./components/CompetitiveAnalysisModal";
 
 type Step = "input" | "auditing" | "interrogation" | "merging" | "review" | "verified";
 type Theme = "light" | "dark";
@@ -89,6 +98,29 @@ interface ThoughtRecord {
   pulseScore: number;
   createdAt: any;
 }
+
+const BUSINESS_TYPES = [
+  "E-commerce (Fashion)",
+  "SaaS (Project Management)",
+  "Fintech (Digital Banking)",
+  "Healthtech (Telemedicine)",
+  "Edtech (Online Learning)",
+  "Real Estate (Proptech)",
+  "Logistics (Last-mile Delivery)",
+  "Cybersecurity (Zero Trust)",
+  "Renewable Energy (Solar)",
+  "AI Services (Consulting)",
+  "Agrotech (Precision Farming)",
+  "Biotech (Gene Editing)",
+  "SpaceTech (Satellite Data)",
+  "GovTech (Digital Identity)",
+  "CleanTech (Carbon Capture)",
+  "InsurTech (Parametric Insurance)",
+  "LegalTech (Contract Automation)",
+  "MarTech (Predictive Analytics)",
+  "Retail (D2C Brands)",
+  "Hospitality (Smart Hotels)"
+];
 
 export default function App() {
   const [user, setUser] = useState<FirebaseUser | null>(null);
@@ -196,6 +228,18 @@ export default function App() {
   const [fileMimeType, setFileMimeType] = useState<string | null>(null);
   const [historySearch, setHistorySearch] = useState("");
   const [useHighThinking, setUseHighThinking] = useState(false);
+  const [showCompetitiveEdge, setShowCompetitiveEdge] = useState(false);
+  const [businessType, setBusinessType] = useState("");
+  const [compAnalysis, setCompAnalysis] = useState<any>(null);
+  const [isAnalyzingComp, setIsAnalyzingComp] = useState(false);
+  const [recentCompSearches, setRecentCompSearches] = useState<string[]>(() => {
+    try {
+      const saved = localStorage.getItem("tt-recent-comp-searches");
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
   const [showChat, setShowChat] = useState(false);
   const [chatMessages, setChatMessages] = useState<ChatMessage[]>([]);
   const [isChatLoading, setIsChatLoading] = useState(false);
@@ -204,6 +248,16 @@ export default function App() {
   const [chatFileMimeType, setChatFileMimeType] = useState<string | null>(null);
   const [hasDraft, setHasDraft] = useState(false);
   const [auditPhase, setAuditPhase] = useState<"recon" | "audit" | "sparks" | "idle">("idle");
+  const [isInputMaximized, setIsInputMaximized] = useState(false);
+  const [chatHistory, setChatHistory] = useState<{id: string, title: string, messages: ChatMessage[]}[]>(() => {
+    try {
+      const saved = localStorage.getItem("tt-chat-history");
+      return saved ? JSON.parse(saved) : [];
+    } catch (e) {
+      return [];
+    }
+  });
+  const [currentChatId, setCurrentChatId] = useState<string | null>(null);
 
   useEffect(() => {
     const draft = localStorage.getItem("tt-draft");
@@ -361,7 +415,7 @@ export default function App() {
 
   // History Listener
   useEffect(() => {
-    if (!user) {
+    if (!user || !db) {
       setHistory([]);
       return;
     }
@@ -516,13 +570,312 @@ export default function App() {
     setChatFileMimeType(null);
     
     try {
-      const response = await gemini.chat(newMessages, useHighThinking, useGrounding);
-      setChatMessages(prev => [...prev, { role: "model", text: response }]);
+      const result = await gemini.chat(newMessages, useHighThinking, useGrounding);
+      const modelMessage: ChatMessage = { 
+        role: "model", 
+        text: result.text,
+        audit: result.audit
+      };
+      const updatedMessages = [...newMessages, modelMessage];
+      setChatMessages(updatedMessages);
+
+      // Update Chat History
+      if (!currentChatId) {
+        const newId = Date.now().toString();
+        const newChat = {
+          id: newId,
+          title: text.slice(0, 30) || "New Analysis",
+          messages: updatedMessages
+        };
+        const newHistory = [newChat, ...chatHistory];
+        setChatHistory(newHistory);
+        setCurrentChatId(newId);
+        localStorage.setItem("tt-chat-history", JSON.stringify(newHistory));
+      } else {
+        const newHistory = chatHistory.map(chat => 
+          chat.id === currentChatId ? { ...chat, messages: updatedMessages } : chat
+        );
+        setChatHistory(newHistory);
+        localStorage.setItem("tt-chat-history", JSON.stringify(newHistory));
+      }
     } catch (err) {
       setError("Chat connection lost.");
     } finally {
       setIsChatLoading(false);
     }
+  };
+
+  const startNewChat = () => {
+    setChatMessages([]);
+    setCurrentChatId(null);
+  };
+
+  const loadChatFromHistory = (chat: {id: string, title: string, messages: ChatMessage[]}) => {
+    setChatMessages(chat.messages);
+    setCurrentChatId(chat.id);
+  };
+
+  const deleteChatFromHistory = (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    const newHistory = chatHistory.filter(chat => chat.id !== id);
+    setChatHistory(newHistory);
+    localStorage.setItem("tt-chat-history", JSON.stringify(newHistory));
+    if (currentChatId === id) {
+      startNewChat();
+    }
+  };
+
+  const handleCompetitiveAnalysis = async (type: string) => {
+    if (!type) return;
+    setIsAnalyzingComp(true);
+    setError(null);
+    try {
+      const analysis = await gemini.generateCompetitiveAnalysis(type);
+      setCompAnalysis(analysis);
+      setShowCompetitiveEdge(true);
+      
+      // Save to recent searches
+      setRecentCompSearches(prev => {
+        const updated = [type, ...prev.filter(t => t !== type)].slice(0, 5);
+        localStorage.setItem("tt-recent-comp-searches", JSON.stringify(updated));
+        return updated;
+      });
+    } catch (err) {
+      console.error("Competitive analysis failed:", err);
+      setError("Failed to generate competitive analysis.");
+    } finally {
+      setIsAnalyzingComp(false);
+    }
+  };
+
+  const SidebarContent = () => {
+    if (!user) return null;
+    return (
+      <div className="flex flex-col h-full">
+        {/* Sidebar Header */}
+        <div className="p-6 border-b border-white/5 bg-white/[0.02]">
+          <div className="flex items-center gap-3">
+            <div className="h-10 w-10 rounded-xl bg-gold text-navy flex items-center justify-center shadow-lg shadow-gold/20">
+              <Brain size={24} />
+            </div>
+            <div>
+              <h2 className="text-sm font-black text-white uppercase tracking-widest">Vault Protocol</h2>
+              <p className="text-[8px] text-slate-500 font-bold uppercase tracking-widest">Adversarial History</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Chat History Section */}
+        <div className="p-4 border-b border-white/5 bg-gold/5">
+          <p className="px-2 text-[8px] font-black text-gold uppercase tracking-widest mb-3">Recent Chat Sessions</p>
+          <div className="space-y-1">
+            {chatHistory.slice(0, 5).map(chat => (
+              <button
+                key={chat.id}
+                onClick={() => {
+                  loadChatFromHistory(chat);
+                  setShowChat(true);
+                  setIsSidebarOpen(false);
+                }}
+                className="w-full flex items-center gap-3 p-2 rounded-lg text-slate-400 hover:bg-white/5 hover:text-gold transition-all text-left"
+              >
+                <MessageSquare size={12} />
+                <span className="text-[10px] font-bold truncate">{chat.title}</span>
+              </button>
+            ))}
+            {chatHistory.length === 0 && (
+              <p className="px-2 text-[8px] text-slate-600 italic">No active sessions</p>
+            )}
+          </div>
+        </div>
+
+        {/* Search / Filter */}
+        <div className="p-4 border-b border-white/5">
+          <div className="relative group">
+            <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-600 group-focus-within:text-gold transition-colors" />
+            <input 
+              type="text"
+              placeholder="Search Vault..."
+              value={historySearch}
+              onChange={(e) => setHistorySearch(e.target.value)}
+              className="w-full bg-white/5 border border-white/5 rounded-xl pl-10 pr-4 py-2 text-[10px] font-bold text-white placeholder:text-slate-600 focus:outline-none focus:border-gold/30 transition-all"
+            />
+          </div>
+        </div>
+
+        {/* History List */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar">
+          {history.length === 0 ? (
+            <div className="h-full flex flex-col items-center justify-center text-center space-y-4 opacity-30">
+              <Clock size={32} className="text-slate-600" />
+              <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">No Interrogations Found</p>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {history
+                .filter(r => r.originalText.toLowerCase().includes(historySearch.toLowerCase()))
+                .map((record) => (
+                  <motion.button
+                    key={record.id}
+                    whileHover={{ scale: 1.02, backgroundColor: "rgba(255, 255, 255, 0.05)" }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => loadFromHistory(record)}
+                    className="w-full text-left p-4 rounded-2xl border border-white/5 bg-white/[0.02] transition-all group relative overflow-hidden"
+                  >
+                    <div className="flex items-center justify-between mb-2">
+                      <div className="flex items-center gap-2">
+                        <div className={cn(
+                          "h-1.5 w-1.5 rounded-full",
+                          record.pulseScore > 80 ? "bg-emerald-500" : record.pulseScore > 50 ? "bg-gold" : "bg-red-500"
+                        )} />
+                        <span className="text-[8px] font-black text-slate-500 uppercase tracking-widest">
+                          {record.createdAt?.toDate ? record.createdAt.toDate().toLocaleDateString() : 'Recent'}
+                        </span>
+                      </div>
+                      <span className="text-[10px] font-black text-white">{record.pulseScore}%</span>
+                    </div>
+                    <p className="text-xs text-slate-400 font-medium line-clamp-2 leading-relaxed group-hover:text-slate-200 transition-colors">
+                      {record.originalText}
+                    </p>
+                    <div className="mt-3 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0">
+                      <div className="flex items-center gap-2">
+                        <span className="text-[9px] font-black text-gold uppercase tracking-widest">Restore Protocol</span>
+                        <ArrowRight size={10} className="text-gold" />
+                      </div>
+                      {record.refinedText && (
+                        <div className="flex items-center gap-1 text-[8px] font-bold text-slate-500">
+                          <CheckCircle2 size={8} />
+                          <span>Refined</span>
+                        </div>
+                      )}
+                    </div>
+                  </motion.button>
+                ))}
+              
+              {history.length >= 20 && (
+                <motion.button
+                  whileHover={{ scale: 1.02, backgroundColor: "rgba(255, 255, 255, 0.05)" }}
+                  whileTap={{ scale: 0.98 }}
+                  className="w-full py-4 rounded-2xl border border-dashed border-white/10 text-[10px] font-black text-slate-500 uppercase tracking-widest hover:text-gold hover:border-gold/30 transition-all"
+                >
+                  Access Full Vault History
+                </motion.button>
+              )}
+            </div>
+          )}
+        </div>
+        
+        {/* Sidebar Footer / Profile */}
+        <div className="p-6 border-t border-white/5 bg-black/40 space-y-6">
+          {/* User Info */}
+          <div className="flex items-center gap-4">
+            <div className="relative">
+              {user.photoURL ? (
+                <img src={user.photoURL} alt="" className="h-12 w-12 rounded-2xl border-2 border-white/10 shadow-xl" />
+              ) : (
+                <div className="h-12 w-12 rounded-2xl bg-linear-to-br from-indigo-500 to-purple-600 border border-white/10 flex items-center justify-center text-white shadow-xl">
+                  <UserIcon size={24} />
+                </div>
+              )}
+              <div className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-emerald-500 border-2 border-slate-900 shadow-lg" />
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-sm font-black text-white truncate tracking-tight">{user.displayName || user.email?.split('@')[0] || 'Elite User'}</p>
+              <div className="flex items-center gap-1.5">
+                <ShieldCheck size={10} className="text-gold" />
+                <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest truncate">{userStats.organization || 'Independent Thinker'}</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Socratic Genome Bento */}
+          {userStats.socraticGenome && (
+            <div className="space-y-3">
+              <div className="flex items-center justify-between">
+                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Socratic Genome</p>
+                <div className="px-2 py-0.5 rounded-md bg-gold/10 text-gold text-[8px] font-black uppercase tracking-widest">Level {Math.floor(userStats.score / 1000) + 1}</div>
+              </div>
+              <div className="grid grid-cols-2 gap-2">
+                <div className="p-3 rounded-xl bg-white/[0.03] border border-white/5 space-y-1.5">
+                  <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">Fortitude</p>
+                  <div className="flex flex-wrap gap-1">
+                    {userStats.socraticGenome.strengths.slice(0, 2).map((s, i) => (
+                      <span key={i} className="text-[9px] font-bold text-slate-400 truncate w-full">• {s}</span>
+                    ))}
+                  </div>
+                </div>
+                <div className="p-3 rounded-xl bg-white/[0.03] border border-white/5 space-y-1.5">
+                  <p className="text-[8px] font-black text-red-400 uppercase tracking-widest">Blindspots</p>
+                  <div className="flex flex-wrap gap-1">
+                    {userStats.socraticGenome.weaknesses.slice(0, 2).map((w, i) => (
+                      <span key={i} className="text-[9px] font-bold text-slate-400 truncate w-full">• {w}</span>
+                    ))}
+                  </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Action Grid */}
+          <div className="grid grid-cols-3 gap-2">
+            <motion.button 
+              whileHover={{ scale: 1.02, backgroundColor: "rgba(212, 175, 55, 0.15)" }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setShowGame(true)}
+              className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl bg-gold/10 border border-gold/20 text-gold transition-all"
+            >
+              <ShieldAlert size={16} />
+              <span className="text-[8px] font-black uppercase tracking-widest">Audit</span>
+            </motion.button>
+            <motion.button 
+              whileHover={{ scale: 1.02, backgroundColor: "rgba(16, 185, 129, 0.15)" }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => {
+                setShowCompetitiveEdge(true);
+                setIsSidebarOpen(false);
+              }}
+              className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 transition-all"
+            >
+              <TrendingUp size={16} />
+              <span className="text-[8px] font-black uppercase tracking-widest">Edge</span>
+            </motion.button>
+            <motion.button 
+              whileHover={{ scale: 1.02, backgroundColor: "rgba(212, 175, 55, 0.15)" }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => {
+                setShowLeaderboard(true);
+                setIsSidebarOpen(false);
+              }}
+              className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl bg-gold/10 border border-gold/20 text-gold transition-all"
+            >
+              <Trophy size={16} />
+              <span className="text-[8px] font-black uppercase tracking-widest">Rank</span>
+            </motion.button>
+          </div>
+
+          {/* Secondary Actions */}
+          <div className="flex items-center gap-2">
+            <motion.button 
+              whileHover={{ scale: 1.05, backgroundColor: "rgba(255, 255, 255, 0.1)" }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowSettings(true)}
+              className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/5 text-slate-400 text-[10px] font-black uppercase tracking-widest hover:text-white transition-all"
+            >
+              <Settings size={14} />
+              <span>Settings</span>
+            </motion.button>
+            <motion.button 
+              whileHover={{ scale: 1.05, backgroundColor: "rgba(239, 68, 68, 0.1)" }}
+              whileTap={{ scale: 0.95 }}
+              onClick={handleLogout}
+              className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-500/5 text-red-400 hover:bg-red-500/10 transition-all"
+            >
+              <LogOut size={16} />
+            </motion.button>
+          </div>
+        </div>
+      </div>
+    );
   };
   const handleChatFileUpload = (file: File) => {
     const reader = new FileReader();
@@ -934,13 +1287,15 @@ export default function App() {
   const loadFromHistory = (record: ThoughtRecord) => {
     setAiText(record.originalText);
     setMergeResult({
-      refined_text: record.refinedText,
-      quality_score: record.pulseScore,
-      human_spark_detected: true
-    });
+      merged_text: record.refinedText,
+      logic_score: record.pulseScore,
+      changes_made: [],
+      human_spark_retained: true
+    } as any);
     setPulseScore(record.pulseScore);
     setStep("verified");
     setIsSidebarOpen(false);
+    setShowLanding(false);
   };
 
   const badge = getBadge(userStats.streak);
@@ -1261,269 +1616,68 @@ export default function App() {
   }
 
   return (
-    <div className="min-h-screen bg-white dark:bg-slate-950 text-navy dark:text-slate-200 selection:bg-gold/30 font-sans flex transition-colors duration-500">
+    <div className="flex min-h-screen bg-slate-50 dark:bg-navy transition-colors duration-500">
+      {/* Persistent Desktop Sidebar */}
+      {user && (
+        <aside className="hidden lg:flex w-80 border-r border-navy/5 dark:border-white/5 flex-col bg-white dark:bg-slate-900/50 backdrop-blur-xl sticky top-0 h-screen overflow-hidden">
+          <SidebarContent />
+        </aside>
+      )}
+
+      {/* Mobile Overlay Sidebar */}
       <AnimatePresence>
-        {isLoading && (
-          <motion.div
-            initial={{ opacity: 0 }}
-            animate={{ opacity: 1 }}
-            exit={{ opacity: 0 }}
-            className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-slate-950/80 backdrop-blur-md"
-          >
-            <div className="relative">
-              <motion.div
-                animate={{ rotate: 360 }}
-                transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
-                className="h-24 w-24 rounded-full border-t-2 border-r-2 border-gold shadow-[0_0_20px_rgba(212,175,55,0.3)]"
-              />
-              <div className="absolute inset-0 flex items-center justify-center">
-                <Brain className="text-gold animate-pulse" size={32} />
-              </div>
-            </div>
-            <motion.div
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: 0.2 }}
-              className="mt-8 text-center space-y-2"
-            >
-              <p className="text-xs font-black uppercase tracking-[0.3em] text-gold">Socratic Interceptor Active</p>
-              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Auditing Cognitive Integrity...</p>
-            </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-      {/* Sidebar - Thinking History */}
-      <AnimatePresence>
-        {isSidebarOpen && (
+        {isSidebarOpen && user && (
           <>
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
               onClick={() => setIsSidebarOpen(false)}
-              className="fixed inset-0 bg-black/60 backdrop-blur-sm z-40 lg:hidden"
+              className="fixed inset-0 bg-slate-950/60 backdrop-blur-sm z-[100] lg:hidden"
             />
             <motion.aside 
-              initial={{ x: -320 }}
+              initial={{ x: "-100%" }}
               animate={{ x: 0 }}
-              exit={{ x: -320 }}
+              exit={{ x: "-100%" }}
               transition={{ type: "spring", damping: 25, stiffness: 200 }}
-              className="fixed inset-y-0 left-0 w-85 bg-slate-900/98 backdrop-blur-2xl border-r border-white/5 z-50 flex flex-col shadow-2xl"
+              className="fixed inset-y-0 left-0 w-80 bg-slate-900 border-r border-white/10 z-[110] flex flex-col lg:hidden"
             >
-              {/* Sidebar Header */}
-              <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-indigo-500/10 text-indigo-400">
-                    <History size={18} />
-                  </div>
-                  <div>
-                    <h2 className="text-sm font-black text-white uppercase tracking-widest">Thought Vault</h2>
-                    <p className="text-[8px] text-slate-500 font-bold uppercase tracking-widest">Socratic History</p>
-                  </div>
-                </div>
-                <motion.button 
-                  whileHover={{ scale: 1.1, rotate: 90 }}
-                  whileTap={{ scale: 0.9 }}
-                  onClick={() => setIsSidebarOpen(false)} 
-                  className="p-2 rounded-xl hover:bg-white/5 text-slate-500 transition-colors"
-                >
-                  <X size={20} />
-                </motion.button>
-              </div>
-
-              {/* History Search */}
-              <div className="px-6 py-4 border-b border-white/5">
-                <div className="relative group">
-                  <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-slate-500 group-focus-within:text-gold transition-colors" />
-                  <input 
-                    type="text"
-                    value={historySearch}
-                    onChange={(e) => setHistorySearch(e.target.value)}
-                    placeholder="Search your sparks..."
-                    className="w-full bg-white/5 border border-white/5 rounded-xl pl-10 pr-4 py-2 text-xs text-white placeholder:text-slate-600 focus:outline-none focus:border-gold/30 focus:bg-white/10 transition-all"
-                  />
-                </div>
-              </div>
-              
-              {/* History List */}
-              <div className="flex-1 overflow-y-auto custom-scrollbar">
-                <div className="p-4 space-y-6">
-                  {history.length === 0 ? (
-                    <div className="flex flex-col items-center justify-center py-12 text-center space-y-4">
-                      <div className="h-16 w-16 rounded-2xl bg-slate-800/50 border border-white/5 flex items-center justify-center text-slate-600">
-                        <Zap size={32} className="opacity-20" />
-                      </div>
-                      <div className="space-y-1">
-                        <p className="text-xs text-slate-400 font-black uppercase tracking-widest">Vault Empty</p>
-                        <p className="text-[10px] text-slate-600 font-medium">Your elite audits will appear here.</p>
-                      </div>
-                    </div>
-                  ) : (
-                    // Grouping logic could be added here, but for now let's focus on visual catchiness
-                      <div className="space-y-3">
-                        {history
-                          .filter(record => 
-                            record.originalText.toLowerCase().includes(historySearch.toLowerCase()) ||
-                            record.refinedText.toLowerCase().includes(historySearch.toLowerCase())
-                          )
-                          .map((record, index) => (
-                          <motion.button
-                            key={record.id}
-                            initial={{ opacity: 0, x: -20 }}
-                            animate={{ opacity: 1, x: 0 }}
-                            transition={{ delay: index * 0.05 }}
-                            whileHover={{ x: 4, backgroundColor: "rgba(255, 255, 255, 0.08)" }}
-                            whileTap={{ scale: 0.98 }}
-                            onClick={() => loadFromHistory(record)}
-                            className="w-full text-left p-4 rounded-2xl bg-white/[0.03] border border-white/5 hover:border-gold/30 hover:shadow-[0_0_20px_rgba(212,175,55,0.1)] transition-all group relative overflow-hidden"
-                          >
-                            <div className="absolute top-0 left-0 w-1 h-full bg-gold opacity-0 group-hover:opacity-100 transition-opacity" />
-                            <div className="flex items-center justify-between mb-3">
-                              <div className="flex items-center gap-2">
-                                <div className={cn(
-                                  "h-2 w-2 rounded-full shadow-[0_0_8px_rgba(0,0,0,0.5)]",
-                                  record.pulseScore > 90 ? "bg-emerald-500 shadow-emerald-500/50" : record.pulseScore > 70 ? "bg-gold shadow-gold/50" : "bg-red-500 shadow-red-500/50"
-                                )} />
-                                <span className="text-[10px] font-black text-white uppercase tracking-widest">{record.pulseScore}% Pulse</span>
-                              </div>
-                              <div className="flex items-center gap-1 text-[9px] font-bold text-slate-600">
-                                <Clock size={10} />
-                                <span>
-                                  {record.createdAt?.toDate ? new Date(record.createdAt.toDate()).toLocaleDateString(undefined, { month: 'short', day: 'numeric' }) : '...'}
-                                </span>
-                              </div>
-                            </div>
-                            <p className="text-xs text-slate-400 font-medium line-clamp-2 leading-relaxed group-hover:text-slate-200 transition-colors">
-                              {record.originalText}
-                            </p>
-                            <div className="mt-3 flex items-center justify-between opacity-0 group-hover:opacity-100 transition-all translate-y-2 group-hover:translate-y-0">
-                              <div className="flex items-center gap-2">
-                                <span className="text-[9px] font-black text-gold uppercase tracking-widest">Restore Protocol</span>
-                                <ArrowRight size={10} className="text-gold" />
-                              </div>
-                              {record.refinedText && (
-                                <div className="flex items-center gap-1 text-[8px] font-bold text-slate-500">
-                                  <CheckCircle2 size={8} />
-                                  <span>Refined</span>
-                                </div>
-                              )}
-                            </div>
-                          </motion.button>
-                        ))}
-                        
-                        {history.length >= 20 && (
-                          <motion.button
-                            whileHover={{ scale: 1.02, backgroundColor: "rgba(255, 255, 255, 0.05)" }}
-                            whileTap={{ scale: 0.98 }}
-                            className="w-full py-4 rounded-2xl border border-dashed border-white/10 text-[10px] font-black text-slate-500 uppercase tracking-widest hover:text-gold hover:border-gold/30 transition-all"
-                          >
-                            Access Full Vault History
-                          </motion.button>
-                        )}
-                      </div>
-                  )}
-                </div>
-              </div>
-              
-              {/* Sidebar Footer / Profile */}
-              <div className="p-6 border-t border-white/5 bg-black/40 space-y-6">
-                {/* User Info */}
-                <div className="flex items-center gap-4">
-                  <div className="relative">
-                    {user.photoURL ? (
-                      <img src={user.photoURL} alt="" className="h-12 w-12 rounded-2xl border-2 border-white/10 shadow-xl" />
-                    ) : (
-                      <div className="h-12 w-12 rounded-2xl bg-linear-to-br from-indigo-500 to-purple-600 border border-white/10 flex items-center justify-center text-white shadow-xl">
-                        <UserIcon size={24} />
-                      </div>
-                    )}
-                    <div className="absolute -bottom-1 -right-1 h-4 w-4 rounded-full bg-emerald-500 border-2 border-slate-900 shadow-lg" />
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <p className="text-sm font-black text-white truncate tracking-tight">{user.displayName || user.email?.split('@')[0] || 'Elite User'}</p>
-                    <div className="flex items-center gap-1.5">
-                      <ShieldCheck size={10} className="text-gold" />
-                      <p className="text-[9px] font-black text-slate-500 uppercase tracking-widest truncate">{userStats.organization || 'Independent Thinker'}</p>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Socratic Genome Bento */}
-                {userStats.socraticGenome && (
-                  <div className="space-y-3">
-                    <div className="flex items-center justify-between">
-                      <p className="text-[10px] font-black uppercase tracking-widest text-slate-500">Socratic Genome</p>
-                      <div className="px-2 py-0.5 rounded-md bg-gold/10 text-gold text-[8px] font-black uppercase tracking-widest">Level {Math.floor(userStats.score / 1000) + 1}</div>
-                    </div>
-                    <div className="grid grid-cols-2 gap-2">
-                      <div className="p-3 rounded-xl bg-white/[0.03] border border-white/5 space-y-1.5">
-                        <p className="text-[8px] font-black text-emerald-400 uppercase tracking-widest">Fortitude</p>
-                        <div className="flex flex-wrap gap-1">
-                          {userStats.socraticGenome.strengths.slice(0, 2).map((s, i) => (
-                            <span key={i} className="text-[9px] font-bold text-slate-400 truncate w-full">• {s}</span>
-                          ))}
-                        </div>
-                      </div>
-                      <div className="p-3 rounded-xl bg-white/[0.03] border border-white/5 space-y-1.5">
-                        <p className="text-[8px] font-black text-red-400 uppercase tracking-widest">Blindspots</p>
-                        <div className="flex flex-wrap gap-1">
-                          {userStats.socraticGenome.weaknesses.slice(0, 2).map((w, i) => (
-                            <span key={i} className="text-[9px] font-bold text-slate-400 truncate w-full">• {w}</span>
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-
-                {/* Action Grid */}
-                <div className="grid grid-cols-2 gap-2">
-                  <motion.button 
-                    whileHover={{ scale: 1.02, backgroundColor: "rgba(212, 175, 55, 0.15)" }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => setShowGame(true)}
-                    className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl bg-gold/10 border border-gold/20 text-gold transition-all"
-                  >
-                    <ShieldAlert size={16} />
-                    <span className="text-[9px] font-black uppercase tracking-widest">Audit Game</span>
-                  </motion.button>
-                  <motion.button 
-                    whileHover={{ scale: 1.02, backgroundColor: "rgba(212, 175, 55, 0.15)" }}
-                    whileTap={{ scale: 0.98 }}
-                    onClick={() => {
-                      setShowLeaderboard(true);
-                      setIsSidebarOpen(false);
-                    }}
-                    className="flex flex-col items-center justify-center gap-2 p-3 rounded-xl bg-gold/10 border border-gold/20 text-gold transition-all"
-                  >
-                    <Trophy size={16} />
-                    <span className="text-[9px] font-black uppercase tracking-widest">Rankings</span>
-                  </motion.button>
-                </div>
-
-                {/* Secondary Actions */}
-                <div className="flex items-center gap-2">
-                  <motion.button 
-                    whileHover={{ scale: 1.05, backgroundColor: "rgba(255, 255, 255, 0.1)" }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => setShowSettings(true)}
-                    className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl bg-white/5 text-slate-400 text-[10px] font-black uppercase tracking-widest hover:text-white transition-all"
-                  >
-                    <Settings size={14} />
-                    <span>Settings</span>
-                  </motion.button>
-                  <motion.button 
-                    whileHover={{ scale: 1.05, backgroundColor: "rgba(239, 68, 68, 0.1)" }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={handleLogout}
-                    className="flex h-10 w-10 items-center justify-center rounded-xl bg-red-500/5 text-red-400 hover:bg-red-500/10 transition-all"
-                  >
-                    <LogOut size={16} />
-                  </motion.button>
-                </div>
-              </div>
+              <SidebarContent />
             </motion.aside>
           </>
+        )}
+      </AnimatePresence>
+
+      {/* Main Content */}
+      <div className="flex-1 relative">
+        <AnimatePresence>
+          {isLoading && (
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="fixed inset-0 z-[200] flex flex-col items-center justify-center bg-slate-950/80 backdrop-blur-md"
+            >
+              <div className="relative">
+                <motion.div
+                  animate={{ rotate: 360 }}
+                  transition={{ duration: 2, repeat: Infinity, ease: "linear" }}
+                  className="h-24 w-24 rounded-full border-t-2 border-r-2 border-gold shadow-[0_0_20px_rgba(212,175,55,0.3)]"
+                />
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <Brain className="text-gold animate-pulse" size={32} />
+                </div>
+              </div>
+              <motion.div
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                transition={{ delay: 0.2 }}
+                className="mt-8 text-center space-y-2"
+              >
+              <p className="text-xs font-black uppercase tracking-[0.3em] text-gold">Socratic Interceptor Active</p>
+              <p className="text-[10px] font-bold text-slate-500 uppercase tracking-widest">Auditing Cognitive Integrity...</p>
+            </motion.div>
+          </motion.div>
         )}
       </AnimatePresence>
 
@@ -1781,12 +1935,21 @@ export default function App() {
                     )}
 
                     {inputMode === "text" ? (
-                      <textarea
-                        value={aiText}
-                        onChange={(e) => setAiText(e.target.value)}
-                        placeholder="Paste AI text here (e.g., from ChatGPT)..."
-                        className="w-full min-h-[240px] bg-transparent p-6 text-navy dark:text-slate-200 placeholder-slate-300 dark:placeholder-slate-600 focus:outline-none resize-none text-lg leading-relaxed"
-                      />
+                      <div className="relative">
+                        <textarea
+                          value={aiText}
+                          onChange={(e) => setAiText(e.target.value)}
+                          placeholder="Paste AI text here (e.g., from ChatGPT)..."
+                          className="w-full min-h-[240px] bg-transparent p-6 text-navy dark:text-slate-200 placeholder-slate-300 dark:placeholder-slate-600 focus:outline-none resize-none text-lg leading-relaxed"
+                        />
+                        <button 
+                          onClick={() => setIsInputMaximized(true)}
+                          className="absolute bottom-4 right-4 p-2 rounded-xl bg-navy/5 dark:bg-white/5 text-slate-400 hover:text-gold transition-all"
+                          title="Maximize Input"
+                        >
+                          <Maximize2 size={18} />
+                        </button>
+                      </div>
                     ) : inputMode === "image" ? (
                       <div className="w-full min-h-[240px] flex flex-col items-center justify-center p-12 space-y-4">
                         <div className="h-16 w-16 rounded-3xl bg-gold/10 flex items-center justify-center text-gold">
@@ -2322,9 +2485,53 @@ export default function App() {
                     <Sparkles size={48} className="text-emerald-500 animate-pulse" />
                   </div>
                 </div>
-                <div className="space-y-2">
-                  <h2 className="text-2xl font-black text-white">Merging Human Spark...</h2>
-                  <p className="text-slate-500 font-medium uppercase tracking-widest text-[10px]">Synthesizing Elite Quality Output</p>
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <h2 className="text-2xl font-black text-white">Merging Human Spark...</h2>
+                    <p className="text-slate-500 font-medium uppercase tracking-widest text-[10px]">Synthesizing Elite Quality Output</p>
+                  </div>
+                  
+                  {/* Proof of Work Progress */}
+                  <div className="w-64 space-y-3 mx-auto">
+                    <div className="flex justify-between text-[8px] font-black uppercase tracking-widest text-slate-500">
+                      <span>Protocol Active</span>
+                      <span>{Math.min(100, Math.floor((pulseScore / 100) * 100))}%</span>
+                    </div>
+                    <div className="h-1 w-full bg-white/5 rounded-full overflow-hidden">
+                      <motion.div 
+                        initial={{ width: 0 }}
+                        animate={{ width: "100%" }}
+                        transition={{ duration: 3, ease: "easeInOut" }}
+                        className="h-full bg-emerald-500"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-1">
+                      <motion.p 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 0.5 }}
+                        className="text-[8px] font-bold text-emerald-500/60 uppercase"
+                      >
+                        • Aligning Adversarial Vectors
+                      </motion.p>
+                      <motion.p 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 1.5 }}
+                        className="text-[8px] font-bold text-emerald-500/60 uppercase"
+                      >
+                        • Injecting Socratic Logic
+                      </motion.p>
+                      <motion.p 
+                        initial={{ opacity: 0 }}
+                        animate={{ opacity: 1 }}
+                        transition={{ delay: 2.5 }}
+                        className="text-[8px] font-bold text-emerald-500/60 uppercase"
+                      >
+                        • Finalizing Integrity Check
+                      </motion.p>
+                    </div>
+                  </div>
                 </div>
               </motion.section>
             )}
@@ -2343,6 +2550,17 @@ export default function App() {
                 </div>
 
                 <div className="relative rounded-3xl border border-gold/20 bg-slate-900/40 p-8 backdrop-blur-2xl space-y-6 shadow-2xl">
+                  {/* Human Spark Integration Badge */}
+                  <div className="flex items-center gap-3 p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/10 mb-6">
+                    <div className="h-8 w-8 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+                      <Zap size={16} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Human Spark Integrated</p>
+                      <p className="text-xs text-slate-400 line-clamp-1 italic">"{lastHumanSpark}"</p>
+                    </div>
+                  </div>
+
                   <div className="prose prose-invert max-w-none prose-p:leading-relaxed prose-p:text-slate-300 prose-headings:text-white prose-strong:text-gold">
                     <ReactMarkdown>{mergeResult.refined_text}</ReactMarkdown>
                   </div>
@@ -2489,6 +2707,17 @@ export default function App() {
                   <div className="absolute -top-24 -right-24 h-48 w-48 rounded-full bg-emerald-500/5 blur-3xl pointer-events-none group-hover:bg-emerald-500/10 transition-colors duration-700" />
                   <div className="absolute -bottom-24 -left-24 h-48 w-48 rounded-full bg-indigo-500/5 blur-3xl pointer-events-none group-hover:bg-indigo-500/10 transition-colors duration-700" />
                   
+                  {/* Human Spark Integration Badge */}
+                  <div className="flex items-center gap-3 p-4 rounded-2xl bg-emerald-500/5 border border-emerald-500/10 mb-6 relative z-10">
+                    <div className="h-8 w-8 rounded-xl bg-emerald-500/10 flex items-center justify-center text-emerald-500">
+                      <Zap size={16} />
+                    </div>
+                    <div>
+                      <p className="text-[10px] font-black text-emerald-500 uppercase tracking-widest">Human Spark Integrated</p>
+                      <p className="text-xs text-slate-400 line-clamp-1 italic">"{lastHumanSpark}"</p>
+                    </div>
+                  </div>
+
                   <div className="flex items-center justify-between relative z-10">
                     <div className="flex items-center gap-2 text-[10px] font-bold text-emerald-500/60 uppercase tracking-widest">
                       <MessageSquare size={14} />
@@ -2698,6 +2927,53 @@ export default function App() {
           </Suspense>
         </main>
       </div>
+      {/* Maximized Input Modal */}
+      <AnimatePresence>
+        {isInputMaximized && (
+          <div className="fixed inset-0 z-[400] flex items-center justify-center p-4 sm:p-8">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsInputMaximized(false)}
+              className="absolute inset-0 bg-slate-950/80 backdrop-blur-md"
+            />
+            <motion.div
+              initial={{ opacity: 0, scale: 0.95 }}
+              animate={{ opacity: 1, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="relative w-full max-w-5xl h-[80vh] bg-white dark:bg-slate-900 border border-navy/10 dark:border-white/10 rounded-3xl shadow-2xl flex flex-col overflow-hidden"
+            >
+              <div className="p-6 border-b border-navy/5 dark:border-white/5 flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 rounded-xl bg-gold/10 text-gold">
+                    <FileText size={20} />
+                  </div>
+                  <h2 className="text-sm font-black text-navy dark:text-white uppercase tracking-widest">Maximized Input Protocol</h2>
+                </div>
+                <button onClick={() => setIsInputMaximized(false)} className="p-2 rounded-xl hover:bg-navy/5 dark:hover:bg-white/5 text-slate-500 transition-colors">
+                  <Minimize2 size={20} />
+                </button>
+              </div>
+              <textarea
+                value={aiText}
+                onChange={(e) => setAiText(e.target.value)}
+                placeholder="Paste AI text here..."
+                className="flex-1 w-full bg-transparent p-8 text-navy dark:text-slate-200 placeholder-slate-300 dark:placeholder-slate-600 focus:outline-none resize-none text-xl leading-relaxed"
+              />
+              <div className="p-6 border-t border-navy/5 dark:border-white/5 bg-navy/5 dark:bg-black/20 flex justify-end">
+                <button 
+                  onClick={() => setIsInputMaximized(false)}
+                  className="px-8 py-3 rounded-xl bg-gold text-navy font-black uppercase tracking-widest shadow-lg shadow-gold/20 hover:scale-105 transition-all"
+                >
+                  Confirm Content
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Cognitive Chat Modal */}
       <AnimatePresence>
         {showChat && (
@@ -2713,180 +2989,258 @@ export default function App() {
               initial={{ opacity: 0, scale: 0.95, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.95, y: 20 }}
-              className="relative w-full max-w-2xl h-[80vh] bg-slate-900 border border-white/10 rounded-3xl shadow-2xl flex flex-col overflow-hidden"
+              className="relative w-full max-w-5xl h-[85vh] bg-slate-900 border border-white/10 rounded-3xl shadow-2xl flex overflow-hidden"
             >
-              {/* Chat Header */}
-              <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
-                <div className="flex items-center gap-3">
-                  <div className="p-2 rounded-xl bg-gold/10 text-gold">
-                    <MessageSquare size={20} />
-                  </div>
-                  <div>
-                    <h2 className="text-sm font-black text-white uppercase tracking-widest">Cognitive Assistant</h2>
-                    <p className="text-[8px] text-slate-500 font-bold uppercase tracking-widest">Multi-Turn Socratic Dialogue</p>
-                  </div>
-                </div>
-                <div className="flex items-center gap-4">
+              {/* Chat Sidebar (History) */}
+              <div className="hidden md:flex w-72 border-r border-white/5 flex-col bg-black/20">
+                <div className="p-6">
                   <button 
-                    onClick={() => setUseGrounding(!useGrounding)}
-                    className={cn(
-                      "flex items-center gap-2 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest transition-all border",
-                      useGrounding ? "bg-emerald-500/10 border-emerald-500/50 text-emerald-400" : "bg-white/5 border-white/5 text-slate-500"
-                    )}
+                    onClick={startNewChat}
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl border border-white/10 text-xs font-black uppercase tracking-widest text-white hover:bg-white/5 transition-all"
                   >
-                    <Search size={10} />
-                    <span>Grounding</span>
-                  </button>
-                  <button onClick={() => setShowChat(false)} className="p-2 rounded-xl hover:bg-white/5 text-slate-500 transition-colors">
-                    <X size={20} />
+                    <Plus size={16} />
+                    <span>New Analysis</span>
                   </button>
                 </div>
-              </div>
-
-              {/* Chat Messages */}
-              <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
-                {chatMessages.length === 0 ? (
-                  <div className="h-full flex flex-col items-center justify-center text-center space-y-4 opacity-40">
-                    <Brain size={48} className="text-slate-600" />
-                    <div className="space-y-1">
-                      <p className="text-xs font-black uppercase tracking-widest text-slate-400">Assistant Ready</p>
-                      <p className="text-[10px] font-medium text-slate-500">Ask me anything to refine your thinking.</p>
-                    </div>
-                  </div>
-                ) : (
-                  chatMessages.map((msg, i) => (
-                    <motion.div
-                      key={i}
-                      initial={{ opacity: 0, y: 10 }}
-                      animate={{ opacity: 1, y: 0 }}
+                <div className="flex-1 overflow-y-auto px-4 pb-6 space-y-2 custom-scrollbar">
+                  <p className="px-2 text-[8px] font-black text-slate-600 uppercase tracking-widest mb-4">Recent Interrogations</p>
+                  {chatHistory.map(chat => (
+                    <div 
+                      key={chat.id}
+                      onClick={() => loadChatFromHistory(chat)}
                       className={cn(
-                        "flex flex-col max-w-[85%] space-y-2",
-                        msg.role === "user" ? "ml-auto items-end" : "mr-auto items-start"
+                        "group relative flex items-center gap-3 p-3 rounded-xl cursor-pointer transition-all",
+                        currentChatId === chat.id ? "bg-white/10 text-gold" : "text-slate-400 hover:bg-white/5 hover:text-white"
                       )}
                     >
-                      {msg.inlineData && (
-                        <div className="p-2 rounded-xl bg-white/5 border border-white/5 overflow-hidden max-w-[200px]">
-                          {msg.inlineData.mimeType.startsWith("image/") ? (
-                            <img 
-                              src={`data:${msg.inlineData.mimeType};base64,${msg.inlineData.data}`} 
-                              alt="Uploaded" 
-                              className="w-full h-auto rounded-lg"
-                              referrerPolicy="no-referrer"
-                            />
-                          ) : (
-                            <div className="flex items-center gap-2 p-2 text-[10px] font-bold text-slate-400">
-                              <FileIcon size={14} />
-                              <span className="truncate">{msg.inlineData.mimeType}</span>
-                            </div>
-                          )}
-                        </div>
-                      )}
-                      <div className={cn(
-                        "p-4 rounded-2xl text-sm leading-relaxed",
-                        msg.role === "user" 
-                          ? "bg-gold text-navy font-medium rounded-tr-none" 
-                          : "bg-white/5 border border-white/5 text-slate-300 rounded-tl-none"
-                      )}>
-                        <ReactMarkdown>{msg.text}</ReactMarkdown>
-                      </div>
-                      <p className="text-[8px] font-black uppercase tracking-widest text-slate-600">
-                        {msg.role === "user" ? "Human" : "T.T. Assistant"}
-                      </p>
-                    </motion.div>
-                  ))
-                )}
-                {isChatLoading && (
-                  <motion.div
-                    initial={{ opacity: 0 }}
-                    animate={{ opacity: 1 }}
-                    className="flex items-center gap-3 text-gold"
-                  >
-                    <Loader2 size={14} className="animate-spin" />
-                    <span className="text-[10px] font-black uppercase tracking-widest">Assistant is thinking...</span>
-                  </motion.div>
-                )}
-              </div>
-
-              {/* Chat Input */}
-              <div className="p-6 border-t border-white/5 bg-black/40 space-y-4">
-                {chatFileData && (
-                  <div className="flex items-center gap-3 p-2 rounded-xl bg-white/5 border border-white/5 w-fit">
-                    {chatFileMimeType?.startsWith("image/") ? (
-                      <img 
-                        src={`data:${chatFileMimeType};base64,${chatFileData}`} 
-                        alt="Preview" 
-                        className="h-10 w-10 rounded-lg object-cover"
-                        referrerPolicy="no-referrer"
-                      />
-                    ) : (
-                      <div className="h-10 w-10 rounded-lg bg-white/10 flex items-center justify-center text-slate-400">
-                        <FileIcon size={16} />
-                      </div>
-                    )}
-                    <div className="flex flex-col">
-                      <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Attachment Ready</span>
+                      <MessageSquare size={14} className="shrink-0" />
+                      <span className="text-[10px] font-bold truncate flex-1">{chat.title}</span>
                       <button 
-                        onClick={() => {
-                          setChatFileData(null);
-                          setChatFileMimeType(null);
-                        }}
-                        className="text-[8px] font-black text-red-400 uppercase tracking-widest hover:text-red-300 text-left"
+                        onClick={(e) => deleteChatFromHistory(chat.id, e)}
+                        className="opacity-0 group-hover:opacity-100 p-1 rounded-md hover:bg-red-500/20 hover:text-red-400 transition-all"
                       >
-                        Remove
+                        <Trash2 size={12} />
                       </button>
                     </div>
-                  </div>
-                )}
-                
-                <form 
-                  onSubmit={(e) => {
-                    e.preventDefault();
-                    const input = e.currentTarget.elements.namedItem("chat-input") as HTMLInputElement;
-                    if (input.value.trim() || chatFileData) {
-                      handleSendMessage(input.value);
-                      input.value = "";
-                    }
-                  }}
-                  className="relative flex items-center gap-3"
-                >
-                  <div className="relative flex-1 group">
-                    <input 
-                      name="chat-input"
-                      type="text"
-                      placeholder="Refine your thought protocol..."
-                      className="w-full bg-white/5 border border-white/5 rounded-2xl pl-12 pr-14 py-4 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-gold/30 focus:bg-white/10 transition-all"
-                    />
-                    <div className="absolute left-2 top-1/2 -translate-y-1/2">
-                      <input 
-                        type="file" 
-                        id="chat-file-upload" 
-                        className="hidden" 
-                        onChange={(e) => {
-                          const file = e.target.files?.[0];
-                          if (file) handleChatFileUpload(file);
-                        }}
-                      />
-                      <label 
-                        htmlFor="chat-file-upload"
-                        className="h-8 w-8 flex items-center justify-center rounded-lg bg-white/5 text-slate-500 hover:text-gold hover:bg-white/10 transition-all cursor-pointer"
-                      >
-                        <Plus size={18} />
-                      </label>
+                  ))}
+                </div>
+              </div>
+
+              {/* Main Chat Area */}
+              <div className="flex-1 flex flex-col min-w-0">
+                {/* Chat Header */}
+                <div className="p-6 border-b border-white/5 flex items-center justify-between bg-white/[0.02]">
+                  <div className="flex items-center gap-3">
+                    <div className="p-2 rounded-xl bg-gold/10 text-gold">
+                      <MessageSquare size={20} />
                     </div>
+                    <div>
+                      <h2 className="text-sm font-black text-white uppercase tracking-widest">Cognitive Assistant</h2>
+                      <p className="text-[8px] text-slate-500 font-bold uppercase tracking-widest">Multi-Turn Socratic Dialogue</p>
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-4">
                     <button 
-                      type="submit"
-                      disabled={isChatLoading}
-                      className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 flex items-center justify-center rounded-xl bg-gold text-navy shadow-lg shadow-gold/20 hover:scale-105 active:scale-0.95 transition-all disabled:opacity-50"
+                      onClick={() => setUseGrounding(!useGrounding)}
+                      className={cn(
+                        "flex items-center gap-2 px-3 py-1 rounded-full text-[8px] font-black uppercase tracking-widest transition-all border",
+                        useGrounding ? "bg-emerald-500/10 border-emerald-500/50 text-emerald-400" : "bg-white/5 border-white/5 text-slate-500"
+                      )}
                     >
-                      <Send size={18} />
+                      <Search size={10} />
+                      <span>Grounding</span>
+                    </button>
+                    <button onClick={() => setShowChat(false)} className="p-2 rounded-xl hover:bg-white/5 text-slate-500 transition-colors">
+                      <X size={20} />
                     </button>
                   </div>
-                </form>
+                </div>
+
+                {/* Chat Messages */}
+                <div className="flex-1 overflow-y-auto p-6 space-y-6 custom-scrollbar">
+                  {chatMessages.length === 0 ? (
+                    <div className="h-full flex flex-col items-center justify-center text-center space-y-4 opacity-40">
+                      <Brain size={48} className="text-slate-600" />
+                      <div className="space-y-1">
+                        <p className="text-xs font-black uppercase tracking-widest text-slate-400">Assistant Ready</p>
+                        <p className="text-[10px] font-medium text-slate-500">Ask me anything to refine your thinking.</p>
+                      </div>
+                    </div>
+                  ) : (
+                    chatMessages.map((msg, i) => (
+                      <motion.div
+                        key={i}
+                        initial={{ opacity: 0, y: 10 }}
+                        animate={{ opacity: 1, y: 0 }}
+                        className={cn(
+                          "flex flex-col max-w-[85%] space-y-2",
+                          msg.role === "user" ? "ml-auto items-end" : "mr-auto items-start"
+                        )}
+                      >
+                        {msg.inlineData && (
+                          <div className="p-2 rounded-xl bg-white/5 border border-white/5 overflow-hidden max-w-[200px]">
+                            {msg.inlineData.mimeType.startsWith("image/") ? (
+                              <img 
+                                src={`data:${msg.inlineData.mimeType};base64,${msg.inlineData.data}`} 
+                                alt="Uploaded" 
+                                className="w-full h-auto rounded-lg"
+                                referrerPolicy="no-referrer"
+                              />
+                            ) : (
+                              <div className="flex items-center gap-2 p-2 text-[10px] font-bold text-slate-400">
+                                <FileIcon size={14} />
+                                <span className="truncate">{msg.inlineData.mimeType}</span>
+                              </div>
+                            )}
+                          </div>
+                        )}
+                        <div className={cn(
+                          "p-4 rounded-2xl text-sm leading-relaxed",
+                          msg.role === "user" 
+                            ? "bg-gold text-navy font-medium rounded-tr-none" 
+                            : "bg-white/5 border border-white/5 text-slate-300 rounded-tl-none"
+                        )}>
+                          <ReactMarkdown>{msg.text}</ReactMarkdown>
+                          
+                          {msg.audit && (
+                            <motion.div 
+                              initial={{ opacity: 0, height: 0 }}
+                              animate={{ opacity: 1, height: "auto" }}
+                              className="mt-4 pt-4 border-t border-white/10 space-y-3"
+                            >
+                              <div className="flex items-center gap-2 text-gold">
+                                <ShieldAlert size={14} />
+                                <span className="text-[10px] font-black uppercase tracking-widest">Socratic Interceptor Active</span>
+                              </div>
+                              <div className="p-3 rounded-xl bg-gold/10 border border-gold/20">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-gold/60 mb-1">Weak Point Detected</p>
+                                <p className="text-xs text-slate-300 italic">"{msg.audit.weak_point}"</p>
+                              </div>
+                              <div className="p-3 rounded-xl bg-white/5 border border-white/10">
+                                <p className="text-[10px] font-black uppercase tracking-widest text-slate-500 mb-1">The Interrogation</p>
+                                <p className="text-xs font-bold text-white leading-relaxed">{msg.audit.socratic_hit}</p>
+                              </div>
+                              <button 
+                                onClick={() => {
+                                  setAiText(msg.text);
+                                  setCritic(msg.audit!);
+                                  setStep("interrogation");
+                                  setShowChat(false);
+                                }}
+                                className="w-full py-2 rounded-lg bg-gold text-navy text-[10px] font-black uppercase tracking-widest hover:scale-[1.02] active:scale-[0.98] transition-all"
+                              >
+                                Provide Human Spark
+                              </button>
+                            </motion.div>
+                          )}
+                        </div>
+                        <p className="text-[8px] font-black uppercase tracking-widest text-slate-600">
+                          {msg.role === "user" ? "Human" : "T.T. Assistant"}
+                        </p>
+                      </motion.div>
+                    ))
+                  )}
+                  {isChatLoading && (
+                    <motion.div
+                      initial={{ opacity: 0 }}
+                      animate={{ opacity: 1 }}
+                      className="flex items-center gap-3 text-gold"
+                    >
+                      <Loader2 size={14} className="animate-spin" />
+                      <span className="text-[10px] font-black uppercase tracking-widest">Assistant is thinking...</span>
+                    </motion.div>
+                  )}
+                </div>
+
+                {/* Chat Input */}
+                <div className="p-6 border-t border-white/5 bg-black/40 space-y-4">
+                  {chatFileData && (
+                    <div className="flex items-center gap-3 p-2 rounded-xl bg-white/5 border border-white/5 w-fit">
+                      {chatFileMimeType?.startsWith("image/") ? (
+                        <img 
+                          src={`data:${chatFileMimeType};base64,${chatFileData}`} 
+                          alt="Preview" 
+                          className="h-10 w-10 rounded-lg object-cover"
+                          referrerPolicy="no-referrer"
+                        />
+                      ) : (
+                        <div className="h-10 w-10 rounded-lg bg-white/10 flex items-center justify-center text-slate-400">
+                          <FileIcon size={16} />
+                        </div>
+                      )}
+                      <div className="flex flex-col">
+                        <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest">Attachment Ready</span>
+                        <button 
+                          onClick={() => {
+                            setChatFileData(null);
+                            setChatFileMimeType(null);
+                          }}
+                          className="text-[8px] font-black text-red-400 uppercase tracking-widest hover:text-red-300 text-left"
+                        >
+                          Remove
+                        </button>
+                      </div>
+                    </div>
+                  )}
+                  
+                  <form 
+                    onSubmit={(e) => {
+                      e.preventDefault();
+                      const input = e.currentTarget.elements.namedItem("chat-input") as HTMLInputElement;
+                      if (input.value.trim() || chatFileData) {
+                        handleSendMessage(input.value);
+                        input.value = "";
+                      }
+                    }}
+                    className="relative flex items-center gap-3"
+                  >
+                    <div className="relative flex-1 group">
+                      <input 
+                        name="chat-input"
+                        type="text"
+                        placeholder="Refine your thought protocol..."
+                        className="w-full bg-white/5 border border-white/5 rounded-2xl pl-12 pr-14 py-4 text-sm text-white placeholder:text-slate-600 focus:outline-none focus:border-gold/30 focus:bg-white/10 transition-all"
+                      />
+                      <div className="absolute left-2 top-1/2 -translate-y-1/2">
+                        <input 
+                          type="file" 
+                          id="chat-file-upload" 
+                          className="hidden" 
+                          onChange={(e) => {
+                            const file = e.target.files?.[0];
+                            if (file) handleChatFileUpload(file);
+                          }}
+                        />
+                        <label 
+                          htmlFor="chat-file-upload"
+                          className="h-8 w-8 flex items-center justify-center rounded-lg bg-white/5 text-slate-500 hover:text-gold hover:bg-white/10 transition-all cursor-pointer"
+                        >
+                          <Plus size={18} />
+                        </label>
+                      </div>
+                      <button 
+                        type="submit"
+                        disabled={isChatLoading}
+                        className="absolute right-2 top-1/2 -translate-y-1/2 h-10 w-10 flex items-center justify-center rounded-xl bg-gold text-navy shadow-lg shadow-gold/20 hover:scale-105 active:scale-0.95 transition-all disabled:opacity-50"
+                      >
+                        <Send size={18} />
+                      </button>
+                    </div>
+                  </form>
+                </div>
               </div>
             </motion.div>
           </div>
         )}
       </AnimatePresence>
+
+      {/* Competitive Edge Dashboard Modal */}
+      {/* Competitive Edge Dashboard Modal */}
+      <CompetitiveAnalysisModal 
+        isOpen={showCompetitiveEdge} 
+        onClose={() => setShowCompetitiveEdge(false)} 
+      />
+      </div>
     </div>
   );
 }

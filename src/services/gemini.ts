@@ -74,6 +74,7 @@ export interface ChatMessage {
     data: string;
     mimeType: string;
   };
+  audit?: CriticResponse;
 }
 
 export class GeminiService {
@@ -278,9 +279,12 @@ export class GeminiService {
         systemInstruction: `
           **ROLE**: You are the "ThinkTank Master Weaver."
           
-          **OBJECTIVE**: Synthesize the original AI draft with the user's raw "Human Spark" to create "Elite Level" output.
+          **OBJECTIVE**: Synthesize the original AI draft with the user's raw "Human Spark" to create "Elite Level" output. This is the final, integrated human-AI synthesis that must be superior to any standard AI output.
           
-          **SOCRATIC GENOME**: Use the USER GENOME to tailor the "socratic_follow_up" if needed. Challenge their known cognitive biases or patterns.
+          **ELITE SYNTHESIS**:
+          - The "refined_text" must be a masterpiece of clarity, strategic depth, and authoritative tone.
+          - It must seamlessly integrate the user's "Human Spark" as the core insight, using the AI's processing power to expand and structure it.
+          - The final output should feel like it was written by a world-class expert who has been deeply challenged by a Socratic master.
           
           **SOCRATIC LOOP**: 
           - If the user's spark is shallow, generic, or misses a critical strategic implication, do NOT generate the final output yet. Instead, generate a "socratic_follow_up" question to push them deeper.
@@ -537,9 +541,9 @@ export class GeminiService {
   }
 
   /**
-   * Multi-turn Chat Interface.
+   * Multi-turn Chat Interface with Socratic Audit.
    */
-  async chat(messages: ChatMessage[], useHighThinking: boolean = false, useGrounding: boolean = false): Promise<string> {
+  async chat(messages: ChatMessage[], useHighThinking: boolean = false, useGrounding: boolean = false): Promise<{ text: string; audit?: CriticResponse }> {
     const model = useHighThinking ? "gemini-3.1-pro-preview" : "gemini-3-flash-preview";
     
     const response = await this.ai.models.generateContent({
@@ -559,14 +563,26 @@ export class GeminiService {
         tools: useGrounding ? [{ googleSearch: {} }] : undefined,
         systemInstruction: `
           **ROLE**: You are the "ThinkTank Cognitive Assistant."
-          **OBJECTIVE**: Engage in a multi-turn dialogue to help the user refine their thoughts, explore complex ideas, and identify logical inconsistencies.
+          **OBJECTIVE**: Engage in a multi-turn dialogue to help the user refine their thoughts.
+          **SOCRATIC INTEGRATION**: If the user's prompt is a request for information or a draft, provide a high-quality response. 
           **TONE**: Professional, insightful, and intellectually challenging.
-          **MULTIMODAL**: You can analyze images, PDFs, and videos if provided.
         `
       }
     });
 
-    return response.text || "No response generated.";
+    const aiText = response.text || "No response generated.";
+    
+    // Seamless Audit Integration
+    try {
+      // Only audit if the response is substantial
+      if (aiText.length > 100) {
+        const audit = await this.auditAIText(aiText);
+        return { text: aiText, audit };
+      }
+      return { text: aiText };
+    } catch (e) {
+      return { text: aiText };
+    }
   }
 
   /**
@@ -729,8 +745,76 @@ export class GeminiService {
   }
 
   /**
-   * Persistence: Save a verified thought to Firestore.
+   * Competitive Edge Analysis - Generates a professional dashboard for a business type.
    */
+  async generateCompetitiveAnalysis(businessType: string): Promise<any> {
+    const response = await this.ai.models.generateContent({
+      model: "gemini-2.0-flash",
+      contents: `Generate a comprehensive, elite-level "Competitive Edge" strategic intelligence report for the business sector: "${businessType}". 
+      
+      Use Google Search to extract:
+      1. Real-time market dynamics and current valuation trends.
+      2. Top 3-5 dominant competitors and their specific strategic vulnerabilities.
+      3. Emerging technological shifts and consumer behavior trends for 2026.
+      4. A cold, hard risk assessment of the current landscape.`,
+      config: {
+        tools: [{ googleSearch: {} }],
+        systemInstruction: `
+          **ROLE**: You are the "ThinkTank Chief Strategy Officer." You provide high-stakes, adversarial market intelligence.
+          
+          **OBJECTIVE**: Deliver a data-driven dashboard that exposes the "Competitive Edge" for a specific business type. Avoid generic advice. Focus on "Asymmetric Advantages" and "Market Gaps."
+          
+          **CRITICAL DIRECTIVES**:
+          - **Market Overview**: Provide a cynical yet accurate assessment of the current state of the industry. Mention saturation levels and barrier to entry.
+          - **Top Competitors**: Identify real, existing companies. For each, pinpoint one "Unfair Advantage" (Strength) and one "Structural Weakness" (Weakness) that a newcomer could exploit.
+          - **Strategic Advantages**: List 3-5 specific, non-obvious strategies that would give a business an edge in this specific sector.
+          - **Latest Trends**: Focus on 2026 projections, Web3/AI integrations, or specific regulatory shifts.
+          - **Risk Assessment**: Be brutal. What is the most likely reason a business in this sector fails today?
+          - **Quality Score**: A percentage (0-100) representing the "Strategic Viability" of entering or competing in this market right now.
+          
+          **OUTPUT FORMAT (JSON ONLY)**:
+          {
+            "businessType": "...",
+            "marketOverview": "...",
+            "topCompetitors": [
+              { "name": "...", "strength": "...", "weakness": "..." }
+            ],
+            "strategicAdvantages": ["...", "..."],
+            "latestTrends": ["...", "..."],
+            "riskAssessment": "...",
+            "qualityScore": 98
+          }
+        `,
+        responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            businessType: { type: Type.STRING },
+            marketOverview: { type: Type.STRING },
+            topCompetitors: {
+              type: Type.ARRAY,
+              items: {
+                type: Type.OBJECT,
+                properties: {
+                  name: { type: Type.STRING },
+                  strength: { type: Type.STRING },
+                  weakness: { type: Type.STRING }
+                },
+                required: ["name", "strength", "weakness"]
+              }
+            },
+            strategicAdvantages: { type: Type.ARRAY, items: { type: Type.STRING } },
+            latestTrends: { type: Type.ARRAY, items: { type: Type.STRING } },
+            riskAssessment: { type: Type.STRING },
+            qualityScore: { type: Type.NUMBER }
+          },
+          required: ["businessType", "marketOverview", "topCompetitors", "strategicAdvantages", "latestTrends", "riskAssessment", "qualityScore"]
+        }
+      }
+    });
+
+    return JSON.parse(response.text || "{}");
+  }
   async saveThought(data: {
     ownerUid: string;
     originalText: string;
@@ -740,6 +824,10 @@ export class GeminiService {
     pulseScore: number;
     isPublic: boolean;
   }) {
+    if (!db) {
+      console.error("Firestore database instance (db) is not initialized in gemini service.");
+      return;
+    }
     const path = 'thoughts';
     try {
       const docRef = await addDoc(collection(db, path), {

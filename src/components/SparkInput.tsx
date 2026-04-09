@@ -1,6 +1,6 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion } from "motion/react";
-import { Send, Sparkles, Loader2, Zap } from "lucide-react";
+import { Send, Sparkles, Loader2, Zap, Undo2, Redo2 } from "lucide-react";
 import { cn } from "../lib/utils";
 
 interface SparkInputProps {
@@ -27,9 +27,61 @@ export function SparkInput({
   defaultSparks = []
 }: SparkInputProps) {
   const [internalSpark, setInternalSpark] = useState("");
-  
+  const [undoStack, setUndoStack] = useState<string[]>([]);
+  const [redoStack, setRedoStack] = useState<string[]>([]);
+  const [lastPushedValue, setLastPushedValue] = useState(value || "");
+
   const spark = value !== undefined ? value : internalSpark;
   const setSpark = onChange || setInternalSpark;
+
+  const addToUndo = (val: string) => {
+    if (val === lastPushedValue) return;
+    setUndoStack(prev => [...prev.slice(-49), lastPushedValue]);
+    setRedoStack([]);
+    setLastPushedValue(val);
+  };
+
+  const handleUndo = () => {
+    if (undoStack.length === 0) return;
+    const prev = undoStack[undoStack.length - 1];
+    setRedoStack(prevRedo => [...prevRedo, spark]);
+    setUndoStack(prevUndo => prevUndo.slice(0, -1));
+    setLastPushedValue(prev);
+    setSpark(prev);
+  };
+
+  const handleRedo = () => {
+    if (redoStack.length === 0) return;
+    const next = redoStack[redoStack.length - 1];
+    setUndoStack(prevUndo => [...prevUndo, spark]);
+    setRedoStack(prevRedo => prevRedo.slice(0, -1));
+    setLastPushedValue(next);
+    setSpark(next);
+  };
+
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (spark !== lastPushedValue) {
+        addToUndo(spark);
+      }
+    }, 1000);
+    return () => clearTimeout(timer);
+  }, [spark, lastPushedValue]);
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'z') {
+      if (e.shiftKey) {
+        e.preventDefault();
+        handleRedo();
+      } else {
+        e.preventDefault();
+        handleUndo();
+      }
+    } else if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'y') {
+      e.preventDefault();
+      handleRedo();
+    }
+  };
 
   const handleSubmit = (isFinalize: boolean = false) => {
     if (spark.trim() && !isLoading) {
@@ -56,6 +108,7 @@ export function SparkInput({
                 whileHover={{ scale: 1.02, backgroundColor: "rgba(212, 175, 55, 0.15)" }}
                 whileTap={{ scale: 0.95 }}
                 onClick={() => {
+                  addToUndo(spark);
                   setSpark(s.template);
                   // Focus the textarea after populating
                   setTimeout(() => {
@@ -90,6 +143,8 @@ export function SparkInput({
           id="spark-input-textarea"
           value={spark}
           onChange={(e) => setSpark(e.target.value)}
+          onBlur={(e) => addToUndo(e.target.value)}
+          onKeyDown={handleKeyDown}
           placeholder={placeholder}
           className="w-full min-h-[120px] bg-transparent p-4 text-sm text-white placeholder-slate-600 focus:outline-none resize-none"
         />
@@ -107,6 +162,29 @@ export function SparkInput({
                 <span>Library</span>
               </motion.button>
             )}
+            
+            <div className="flex items-center gap-1 ml-2">
+              <motion.button
+                whileHover={{ scale: 1.1, backgroundColor: "rgba(255, 255, 255, 0.1)" }}
+                whileTap={{ scale: 0.9 }}
+                onClick={handleUndo}
+                disabled={undoStack.length === 0}
+                title="Undo (Ctrl+Z)"
+                className="h-8 w-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+              >
+                <Undo2 size={14} />
+              </motion.button>
+              <motion.button
+                whileHover={{ scale: 1.1, backgroundColor: "rgba(255, 255, 255, 0.1)" }}
+                whileTap={{ scale: 0.9 }}
+                onClick={handleRedo}
+                disabled={redoStack.length === 0}
+                title="Redo (Ctrl+Y)"
+                className="h-8 w-8 flex items-center justify-center rounded-lg text-slate-400 hover:text-white disabled:opacity-30 disabled:cursor-not-allowed transition-all"
+              >
+                <Redo2 size={14} />
+              </motion.button>
+            </div>
           </div>
           
           <div className="flex items-center gap-2">
